@@ -1,0 +1,8 @@
+relation,columns,k_previous_neighbors
+card1,card1,3
+card1_card2,card1 + card2,3
+card_core,card1 + card2 + card3 + card5,3
+card_full,card1 + card2 + card3 + card4 + card5 + card6,3
+card_core_addr1,card1 + card2 + card3 + card5 + addr1,3
+device_info,DeviceInfo,3
+device_fingerprint,DeviceInfo + id_30 + id_31 + id_33,3

@@ -1,0 +1,2 @@
+models/*.txt filter=lfs diff=lfs merge=lfs -text
+reports/**/*.parquet filter=lfs diff=lfs merge=lfs -text

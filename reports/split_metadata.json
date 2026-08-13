@@ -1,0 +1,28 @@
+{
+  "source_file": "C:\\Users\\LENOVO\\Desktop\\fraud-relational-ml\\data\\raw\\train_transaction.csv",
+  "n_transactions": 590540,
+  "requested_ratios": {
+    "train": 0.7,
+    "validation": 0.15,
+    "test": 0.15
+  },
+  "nominal_boundaries": {
+    "train_end_row": 413378,
+    "validation_end_row": 501959
+  },
+  "timestamp_safe_boundaries": {
+    "train_end_row": 413378,
+    "validation_end_row": 501959
+  },
+  "boundary_transaction_dt": {
+    "train_max": 10437996,
+    "validation_min": 10438003,
+    "validation_max": 13151840,
+    "test_min": 13151880
+  },
+  "tie_safe": true,
+  "sorting": [
+    "TransactionDT",
+    "TransactionID"
+  ]
+}
