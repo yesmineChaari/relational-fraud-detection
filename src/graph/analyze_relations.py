@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +12,7 @@ from scipy.sparse.csgraph import connected_components
 ROOT_DIR = Path(__file__).resolve().parents[2]
 RAW_DIR = ROOT_DIR / "data" / "raw"
 REPORT_DIR = ROOT_DIR / "reports" / "relational_audit"
+AUDIT_METADATA_FILE = REPORT_DIR / "audit_metadata.json"
 
 TRANSACTION_FILE = RAW_DIR / "train_transaction.csv"
 IDENTITY_FILE = RAW_DIR / "train_identity.csv"
@@ -18,6 +20,7 @@ SPLIT_FILE = ROOT_DIR / "data" / "processed" / "split_assignment.parquet"
 
 K_PREVIOUS_NEIGHBORS = 3
 DENSE_GROUP_SIZE = 5
+PRIMARY_RELATION = "card_core_addr1"
 
 CANDIDATES: dict[str, list[str]] = {
     "card1": ["card1"],
@@ -57,9 +60,17 @@ def load_data() -> pd.DataFrame:
         columns=["TransactionID", "split"],
     )
     train_ids = split_df.loc[split_df["split"] == "train", "TransactionID"]
+    if len(train_ids) != 413_378 or not train_ids.is_unique:
+        raise ValueError(
+            "Frozen train split must contain 413,378 unique TransactionIDs."
+        )
     transactions = transactions[
         transactions["TransactionID"].isin(train_ids)
     ].copy()
+    if len(transactions) != 413_378:
+        raise ValueError(
+            "Relational audit did not load exactly the frozen train partition."
+        )
 
     identity = pd.read_csv(IDENTITY_FILE, usecols=identity_columns)
     df = transactions.merge(
@@ -187,6 +198,18 @@ def build_temporal_edges(
     proxy: pd.Series,
     k_previous: int,
 ) -> np.ndarray:
+    """Connect each transaction to its last k strictly earlier entity peers.
+
+    Strict time filtering happens before the k-neighbor limit. Consequently,
+    transactions tied with the current timestamp never consume neighbor slots
+    that belong to valid earlier transactions.
+    """
+
+    if k_previous <= 0:
+        raise ValueError("k_previous must be positive.")
+    if len(proxy) != len(df) or not proxy.index.equals(df.index):
+        raise ValueError("proxy must have the same length and index as df.")
+
     valid = proxy.notna()
     temp = pd.DataFrame(
         {
@@ -194,24 +217,112 @@ def build_temporal_edges(
             "time": df.loc[valid, "TransactionDT"].to_numpy(),
             "node": df.loc[valid, "node_id"].to_numpy(),
         }
-    ).sort_values(["entity", "time", "node"])
-    grouped = temp.groupby("entity", sort=False)
-    edge_batches = []
+    ).sort_values(
+        ["entity", "time", "node"],
+        kind="mergesort",
+    ).reset_index(drop=True)
+    if temp.empty:
+        return np.array([], dtype=np.uint64)
+
+    # Within each entity, entity_position is the row's position in temporal
+    # order. same_time_position is its position inside the current timestamp
+    # tie block. Their difference is therefore the number of strictly earlier
+    # transactions, regardless of how many equal-time rows precede this row.
+    entity_position = (
+        temp.groupby("entity", sort=False).cumcount().to_numpy(dtype=np.int64)
+    )
+    same_time_position = (
+        temp.groupby(["entity", "time"], sort=False)
+        .cumcount()
+        .to_numpy(dtype=np.int64)
+    )
+    strictly_earlier_count = entity_position - same_time_position
+
+    global_position = np.arange(len(temp), dtype=np.int64)
+    entity_start_position = global_position - entity_position
+    times = temp["time"].to_numpy()
+    nodes = temp["node"].to_numpy(dtype=np.uint64)
+    edge_batches: list[np.ndarray] = []
 
     for lag in range(1, k_previous + 1):
-        previous_node = grouped["node"].shift(lag)
-        previous_time = grouped["time"].shift(lag)
-        valid_edge = previous_node.notna() & (previous_time < temp["time"])
+        valid_edge = strictly_earlier_count >= lag
         if not valid_edge.any():
             continue
 
-        source = temp.loc[valid_edge, "node"].to_numpy(dtype=np.uint64)
-        destination = previous_node.loc[valid_edge].to_numpy(dtype=np.uint64)
+        previous_position = (
+            entity_start_position[valid_edge]
+            + strictly_earlier_count[valid_edge]
+            - lag
+        )
+        if not np.all(times[previous_position] < times[valid_edge]):
+            raise AssertionError(
+                "Temporal edge construction produced a non-strict predecessor."
+            )
+
+        source = nodes[valid_edge]
+        destination = nodes[previous_position]
         edge_batches.append(source * np.uint64(len(df)) + destination)
 
     if not edge_batches:
         return np.array([], dtype=np.uint64)
     return np.unique(np.concatenate(edge_batches))
+
+
+def verify_primary_relation(graph_df: pd.DataFrame) -> dict[str, float | str]:
+    """Verify the existing primary relation still has its selection profile."""
+
+    indexed = graph_df.set_index("relation")
+    required = set(CANDIDATES)
+    missing = required - set(indexed.index)
+    if missing:
+        raise ValueError(
+            f"Graph diagnostics are missing relations: {sorted(missing)}."
+        )
+
+    primary = indexed.loc[PRIMARY_RELATION]
+    card_relations = [name for name in CANDIDATES if name.startswith("card")]
+    device_relations = ["device_info", "device_fingerprint"]
+
+    max_card_lift = float(indexed.loc[card_relations, "fraud_neighbor_lift"].max())
+    min_card_largest_component = float(
+        indexed.loc[card_relations, "largest_component_pct"].min()
+    )
+    max_device_participation = float(
+        indexed.loc[device_relations, "participating_nodes_pct"].max()
+    )
+
+    if not np.isclose(float(primary["fraud_neighbor_lift"]), max_card_lift):
+        raise AssertionError(
+            f"{PRIMARY_RELATION} no longer has the strongest card-family "
+            "fraud-neighbor lift."
+        )
+    if not np.isclose(
+        float(primary["largest_component_pct"]),
+        min_card_largest_component,
+    ):
+        raise AssertionError(
+            f"{PRIMARY_RELATION} no longer has the smallest largest-component "
+            "share among card-family candidates."
+        )
+    if float(primary["participating_nodes_pct"]) <= max_device_participation:
+        raise AssertionError(
+            f"{PRIMARY_RELATION} no longer has broader participation than "
+            "the device candidates."
+        )
+
+    return {
+        "primary_relation": PRIMARY_RELATION,
+        "participating_nodes_pct": float(primary["participating_nodes_pct"]),
+        "fraud_neighbor_lift": float(primary["fraud_neighbor_lift"]),
+        "largest_component_pct": float(primary["largest_component_pct"]),
+        "label_agreement": float(primary["label_agreement"]),
+        "max_device_participating_nodes_pct": max_device_participation,
+        "selection_rationale": (
+            "Retains broad coverage relative to device relations while providing "
+            "the strongest fraud-neighbor lift and smallest largest-component "
+            "share among the audited card-family relations."
+        ),
+    }
 
 
 def analyze_graph(name: str, df: pd.DataFrame, edge_ids: np.ndarray) -> dict:
@@ -340,6 +451,7 @@ def main() -> None:
     entity_df = pd.DataFrame(entity_results)
     graph_df = pd.DataFrame(graph_results)
     overlap = calculate_edge_overlap(edge_sets)
+    primary_evidence = verify_primary_relation(graph_df)
 
     entity_df.to_csv(REPORT_DIR / "entity_diagnostics.csv", index=False)
     graph_df.to_csv(REPORT_DIR / "graph_diagnostics.csv", index=False)
@@ -361,7 +473,30 @@ def main() -> None:
         ]
     ).to_csv(REPORT_DIR / "candidate_definitions.csv", index=False)
 
+    audit_metadata = {
+        "audit_scope": "frozen_train_partition_only",
+        "n_transactions": int(len(df)),
+        "k_previous_neighbors": K_PREVIOUS_NEIGHBORS,
+        "temporal_edge_policy": (
+            "For each current transaction, first restrict same-entity candidates "
+            "to TransactionDT strictly less than the current TransactionDT, then "
+            "select the last k candidates in deterministic time/node order."
+        ),
+        "equal_timestamp_edges_allowed": False,
+        "temporal_tie_fix_verified": True,
+        "primary_relation_status": "retained_after_temporal_tie_fix",
+        "primary_relation_evidence": primary_evidence,
+        "test_partition_used": False,
+        "test_evaluated": False,
+    }
+    with AUDIT_METADATA_FILE.open("w", encoding="utf-8") as handle:
+        json.dump(audit_metadata, handle, indent=2)
+        handle.write("\n")
+
     print(f"Reports written to {REPORT_DIR.resolve()}")
+    print(
+        f"Primary relation retained: {primary_evidence['primary_relation']}"
+    )
 
 
 if __name__ == "__main__":

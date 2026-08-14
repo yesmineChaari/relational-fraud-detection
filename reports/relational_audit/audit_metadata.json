@@ -1,0 +1,20 @@
+{
+  "audit_scope": "frozen_train_partition_only",
+  "n_transactions": 413378,
+  "k_previous_neighbors": 3,
+  "temporal_edge_policy": "For each current transaction, first restrict same-entity candidates to TransactionDT strictly less than the current TransactionDT, then select the last k candidates in deterministic time/node order.",
+  "equal_timestamp_edges_allowed": false,
+  "temporal_tie_fix_verified": true,
+  "primary_relation_status": "retained_after_temporal_tie_fix",
+  "primary_relation_evidence": {
+    "primary_relation": "card_core_addr1",
+    "participating_nodes_pct": 83.35929826938056,
+    "fraud_neighbor_lift": 10.771411812166471,
+    "largest_component_pct": 0.9869901155842835,
+    "label_agreement": 0.9694446524885513,
+    "max_device_participating_nodes_pct": 22.00479948134637,
+    "selection_rationale": "Retains broad coverage relative to device relations while providing the strongest fraud-neighbor lift and smallest largest-component share among the audited card-family relations."
+  },
+  "test_partition_used": false,
+  "test_evaluated": false
+}
