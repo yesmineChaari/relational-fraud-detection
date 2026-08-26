@@ -15,6 +15,7 @@ from src.models.train_lightgbm_baseline import (
     build_artifact_paths,
     build_lightgbm_model,
     fit_category_mapping,
+    get_feature_columns,
     precision_recall_at_fraction,
     resolve_scale_pos_weight,
 )
@@ -79,9 +80,15 @@ class BaselinePreprocessingTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             assert_no_forbidden_features(["TransactionAmt", "isFraud"])
 
-    def test_relational_features_raise(self) -> None:
+    def test_accidental_merge_features_raise(self) -> None:
         with self.assertRaises(AssertionError):
-            assert_no_forbidden_features(["TransactionAmt", "graph_degree"])
+            assert_no_forbidden_features(["TransactionAmt", "TransactionID_y"])
+
+    def test_relational_features_are_allowed(self) -> None:
+        feature_columns = get_feature_columns(
+            ["TransactionID", "TransactionAmt", "graph_degree"]
+        )
+        self.assertEqual(feature_columns, ["TransactionAmt", "graph_degree"])
 
 
 class FinalizationConfigurationTests(unittest.TestCase):

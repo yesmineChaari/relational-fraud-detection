@@ -71,23 +71,6 @@ ACCIDENTAL_MERGE_COLUMNS = {
     "split_x",
     "split_y",
 }
-RELATIONAL_FEATURE_MARKERS = (
-    "card_core",
-    "connected_component",
-    "entity_count",
-    "entity_group",
-    "fraud_neighbor",
-    "gnn_",
-    "graph_",
-    "graphsage",
-    "group_size",
-    "neighbor_count",
-    "neighbor_degree",
-    "prior_count",
-    "same_entity",
-    "time_since_previous",
-)
-
 CategoryMapping = dict[str, int]
 CategoryMappings = dict[str, CategoryMapping]
 
@@ -313,18 +296,6 @@ def assert_no_forbidden_features(feature_columns: list[str]) -> None:
         raise AssertionError(
             f"Accidental merge columns present in model features: {sorted(accidental)}."
         )
-
-    relational = sorted(
-        column
-        for column in feature_columns
-        if any(marker in column.lower() for marker in RELATIONAL_FEATURE_MARKERS)
-    )
-    if relational:
-        raise AssertionError(
-            "Relational or graph-derived columns are outside this baseline's scope: "
-            f"{relational}."
-        )
-
 
 def is_categorical_dtype(dtype: object) -> bool:
     return (
