@@ -1,0 +1,5 @@
+feature,importance_gain,importance_split,rank_gain,rank_split,total_features_in_model
+card_core_addr1_prior_count,290997.17162561417,12050,15,7,439
+card_core_addr1_time_since_previous_hours,250929.75578162077,13670,18,6,439
+card_core_addr1_prior_count_7d,148796.2584489286,6831,32,15,439
+card_core_addr1_prior_count_24h,69772.67346781492,3258,49,29,439

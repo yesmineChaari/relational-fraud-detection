@@ -1,0 +1,26 @@
+{
+  "relation_name": "card1",
+  "group_columns": [
+    "card1"
+  ],
+  "feature_names": [
+    "card1_prior_count",
+    "card1_prior_count_24h",
+    "card1_prior_count_7d",
+    "card1_time_since_previous_hours"
+  ],
+  "strict_temporal_rule": "TransactionDT_previous < TransactionDT_current",
+  "window_24h_seconds": 86400,
+  "window_7d_seconds": 604800,
+  "missing_group_policy": "If any group component is missing, counts are 0 and recency is NaN.",
+  "equal_timestamp_policy": "Rows at the same timestamp do not observe one another; each sees only strictly earlier timestamp blocks.",
+  "history_across_splits": "History is continuous across train, validation, and test; it is never reset at split boundaries.",
+  "input_path": "data/processed/model_dataset.parquet",
+  "output_path": "data/processed/relational_features_card1.parquet",
+  "row_count": 590540,
+  "unique_transaction_count": 590540,
+  "valid_group_row_count": 590540,
+  "invalid_group_row_count": 0,
+  "target_labels_used": false,
+  "generated_at_utc": "2026-08-30T21:13:37.241165+00:00"
+}

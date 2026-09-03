@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import platform
@@ -15,12 +16,10 @@ from lightgbm import LGBMClassifier
 from pandas.api.types import is_float_dtype, is_integer_dtype, is_numeric_dtype
 
 from src.features.build_relational_features import (
-    GROUP_COLUMNS,
-    METADATA_PATH as RELATIONAL_METADATA_PATH,
-    OUTPUT_COLUMNS as RELATIONAL_OUTPUT_COLUMNS,
-    OUTPUT_PATH as RELATIONAL_FEATURES_PATH,
-    RELATION_NAME,
-    RELATIONAL_FEATURES,
+    RELATION_REGISTRY,
+    _feature_names,
+    _output_path as _rel_output_path,
+    _metadata_path as _rel_metadata_path,
 )
 from src.models.train_lightgbm_baseline import (
     CATEGORY_MAPPINGS_PATH,
@@ -47,16 +46,7 @@ from src.models.train_lightgbm_baseline import (
     write_json,
 )
 
-
 ROOT_DIR = Path(__file__).resolve().parents[2]
-MODEL_PATH = ROOT_DIR / "models" / "lightgbm_b1_card_core_addr1.txt"
-REPORT_DIR = ROOT_DIR / "reports" / "b1" / "card_core_addr1"
-METRICS_PATH = REPORT_DIR / "metrics.json"
-METADATA_PATH = REPORT_DIR / "metadata.json"
-FEATURE_IMPORTANCE_PATH = REPORT_DIR / "feature_importance.csv"
-VALIDATION_PREDICTIONS_PATH = REPORT_DIR / "validation_predictions.parquet"
-LEARNING_CURVE_PATH = REPORT_DIR / "learning_curve.csv"
-COMPARISON_PATH = REPORT_DIR / "comparison_to_b0.csv"
 
 EXPECTED_B0_FEATURE_COUNT = 435
 EXPECTED_B1_FEATURE_COUNT = 439
@@ -80,12 +70,37 @@ FROZEN_PARAMETER_NAMES = [
     "deterministic",
     "force_col_wise",
 ]
+
+# Always-protected artifacts that must never be overwritten by any B1 variant.
 B0_PROTECTED_PATHS = [
     B0_MODEL_PATH,
     B0_METADATA_PATH,
     B0_METRICS_PATH,
     CATEGORY_MAPPINGS_PATH,
 ]
+# The original card_core_addr1 B1 is also frozen once created.
+B1_CARD_CORE_ADDR1_PROTECTED = [
+    ROOT_DIR / "models" / "lightgbm_b1_card_core_addr1.txt",
+    ROOT_DIR / "reports" / "b1" / "card_core_addr1" / "metrics.json",
+    ROOT_DIR / "reports" / "b1" / "card_core_addr1" / "metadata.json",
+    ROOT_DIR / "reports" / "b1" / "card_core_addr1" / "feature_importance.csv",
+]
+
+
+def _resolve_relation_paths(relation: str) -> tuple[Path, Path, Path, Path, Path, Path, Path]:
+    """Return (model_path, report_dir, metrics, metadata, feat_imp, val_pred, learning_curve, comparison)."""
+    model_path = ROOT_DIR / "models" / f"lightgbm_b1_{relation}.txt"
+    report_dir = ROOT_DIR / "reports" / "b1" / relation
+    return (
+        model_path,
+        report_dir,
+        report_dir / "metrics.json",
+        report_dir / "metadata.json",
+        report_dir / "feature_importance.csv",
+        report_dir / "validation_predictions.parquet",
+        report_dir / "learning_curve.csv",
+        report_dir / "comparison_to_b0.csv",
+    )
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -104,22 +119,26 @@ def file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def snapshot_b0_artifacts() -> dict[str, str]:
+def snapshot_protected_artifacts(paths: list[Path]) -> dict[str, str]:
     return {
-        repository_relative(path): file_sha256(path)
-        for path in B0_PROTECTED_PATHS
+        repository_relative(p): file_sha256(p)
+        for p in paths
+        if p.exists()
     }
 
 
-def assert_b0_artifacts_unchanged(reference_hashes: dict[str, str]) -> None:
-    current_hashes = snapshot_b0_artifacts()
-    if current_hashes != reference_hashes:
-        changed = sorted(
-            path
-            for path in set(reference_hashes) | set(current_hashes)
-            if reference_hashes.get(path) != current_hashes.get(path)
-        )
-        raise AssertionError(f"B1 modified frozen B0 artifacts: {changed}.")
+def assert_protected_artifacts_unchanged(
+    reference_hashes: dict[str, str],
+    paths: list[Path],
+    label: str = "protected",
+) -> None:
+    current = snapshot_protected_artifacts(paths)
+    changed = sorted(
+        p for p in set(reference_hashes) | set(current)
+        if reference_hashes.get(p) != current.get(p)
+    )
+    if changed:
+        raise AssertionError(f"B1 variant modified {label} artifacts: {changed}.")
 
 
 def load_frozen_b0_metadata(path: Path = B0_METADATA_PATH) -> dict[str, Any]:
@@ -130,7 +149,6 @@ def load_frozen_b0_metadata(path: Path = B0_METADATA_PATH) -> dict[str, Any]:
         raise ValueError("B0 metadata is not marked as the selected baseline.")
     if metadata.get("test_evaluated") is not False:
         raise ValueError("Frozen B0 metadata violates final-test discipline.")
-
     feature_columns = metadata.get("feature_columns")
     categorical_columns = metadata.get("categorical_feature_columns")
     numeric_columns = metadata.get("numeric_feature_columns")
@@ -140,12 +158,10 @@ def load_frozen_b0_metadata(path: Path = B0_METADATA_PATH) -> dict[str, Any]:
         raise ValueError("Frozen B0 feature manifest contains duplicates.")
     if len(feature_columns) != EXPECTED_B0_FEATURE_COUNT:
         raise ValueError(
-            "Frozen B0 predictor-count sanity check failed: "
+            f"Frozen B0 predictor-count sanity check failed: "
             f"expected {EXPECTED_B0_FEATURE_COUNT}, got {len(feature_columns)}."
         )
-    if not isinstance(categorical_columns, list) or not isinstance(
-        numeric_columns, list
-    ):
+    if not isinstance(categorical_columns, list) or not isinstance(numeric_columns, list):
         raise ValueError("Frozen B0 dtype manifests are missing or invalid.")
     if set(categorical_columns) & set(numeric_columns):
         raise ValueError("Frozen B0 categorical and numeric manifests overlap.")
@@ -156,15 +172,16 @@ def load_frozen_b0_metadata(path: Path = B0_METADATA_PATH) -> dict[str, Any]:
     return metadata
 
 
-def load_feature_builder_metadata(
-    path: Path = RELATIONAL_METADATA_PATH,
-) -> dict[str, Any]:
-    metadata = read_json(path)
-    if metadata.get("relation_name") != RELATION_NAME:
-        raise ValueError("Relational feature metadata has the wrong relation name.")
-    if metadata.get("group_columns") != GROUP_COLUMNS:
+def load_feature_builder_metadata(relation: str) -> dict[str, Any]:
+    meta_path = _rel_metadata_path(relation)
+    metadata = read_json(meta_path)
+    group_columns = RELATION_REGISTRY[relation]
+    feat_names = _feature_names(relation)
+    if metadata.get("relation_name") != relation:
+        raise ValueError(f"Relational feature metadata has the wrong relation name (expected {relation}).")
+    if metadata.get("group_columns") != group_columns:
         raise ValueError("Relational feature metadata has the wrong group definition.")
-    if metadata.get("feature_names") != RELATIONAL_FEATURES:
+    if metadata.get("feature_names") != feat_names:
         raise ValueError("Relational feature metadata has the wrong feature manifest.")
     if metadata.get("target_labels_used") is not False:
         raise ValueError("Relational feature builder must not use target labels.")
@@ -173,15 +190,18 @@ def load_feature_builder_metadata(
     return metadata
 
 
-def validate_relational_feature_dtypes(relational_df: pd.DataFrame) -> None:
-    for column in RELATIONAL_FEATURES[:3]:
+def validate_relational_feature_dtypes(
+    relational_df: pd.DataFrame,
+    feat_names: list[str],
+) -> None:
+    for column in feat_names[:3]:
         if not is_integer_dtype(relational_df[column].dtype):
             raise TypeError(f"{column} must use an integer dtype.")
         if relational_df[column].isna().any():
             raise ValueError(f"{column} contains missing counts.")
         if relational_df[column].lt(0).any():
             raise ValueError(f"{column} contains negative counts.")
-    recency_column = RELATIONAL_FEATURES[3]
+    recency_column = feat_names[3]
     if not is_float_dtype(relational_df[recency_column].dtype):
         raise TypeError(f"{recency_column} must use a floating dtype.")
     if relational_df[recency_column].dropna().lt(0).any():
@@ -191,18 +211,18 @@ def validate_relational_feature_dtypes(relational_df: pd.DataFrame) -> None:
 def validate_relational_merge(
     model_index: pd.DataFrame,
     relational_df: pd.DataFrame,
+    feat_names: list[str],
 ) -> pd.DataFrame:
-    if list(relational_df.columns) != RELATIONAL_OUTPUT_COLUMNS:
+    expected_cols = ["TransactionID", *feat_names]
+    if list(relational_df.columns) != expected_cols:
         raise ValueError(
-            "Relational feature columns must be exactly "
-            f"{RELATIONAL_OUTPUT_COLUMNS}; got {list(relational_df.columns)}."
+            f"Relational feature columns must be exactly {expected_cols}; "
+            f"got {list(relational_df.columns)}."
         )
     required_index_columns = {"TransactionID", "split"}
-    missing_index_columns = required_index_columns - set(model_index.columns)
-    if missing_index_columns:
-        raise ValueError(
-            f"Model index is missing columns: {sorted(missing_index_columns)}."
-        )
+    missing = required_index_columns - set(model_index.columns)
+    if missing:
+        raise ValueError(f"Model index is missing columns: {sorted(missing)}.")
     if model_index["TransactionID"].isna().any():
         raise ValueError("Model index contains missing TransactionID values.")
     if relational_df["TransactionID"].isna().any():
@@ -211,7 +231,7 @@ def validate_relational_merge(
         raise ValueError("Model index contains duplicate TransactionID values.")
     if not relational_df["TransactionID"].is_unique:
         raise ValueError("Relational features contain duplicate TransactionID values.")
-    validate_relational_feature_dtypes(relational_df)
+    validate_relational_feature_dtypes(relational_df, feat_names)
 
     membership = model_index[["TransactionID"]].merge(
         relational_df[["TransactionID"]],
@@ -220,13 +240,12 @@ def validate_relational_merge(
         indicator=True,
         validate="one_to_one",
     )
-    missing_relational = int(membership["_merge"].eq("left_only").sum())
-    extra_relational = int(membership["_merge"].eq("right_only").sum())
-    if missing_relational or extra_relational:
+    missing_rel = int(membership["_merge"].eq("left_only").sum())
+    extra_rel = int(membership["_merge"].eq("right_only").sum())
+    if missing_rel or extra_rel:
         raise ValueError(
-            "Relational/model TransactionID membership mismatch: "
-            f"missing relational IDs={missing_relational}, "
-            f"extra relational IDs={extra_relational}."
+            f"Relational/model TransactionID membership mismatch: "
+            f"missing relational IDs={missing_rel}, extra relational IDs={extra_rel}."
         )
 
     merged = model_index[["TransactionID", "split"]].merge(
@@ -243,10 +262,6 @@ def validate_relational_merge(
         model_index["TransactionID"].to_numpy(),
     ):
         raise AssertionError("Relational merge changed TransactionID order.")
-    if not merged["split"].astype("string").equals(
-        model_index["split"].astype("string")
-    ):
-        raise AssertionError("Relational merge changed split assignments.")
     return merged
 
 
@@ -254,14 +269,15 @@ def attach_relational_features(
     partition_df: pd.DataFrame,
     merged_index: pd.DataFrame,
     split_name: str,
+    feat_names: list[str],
 ) -> pd.DataFrame:
-    if any(column in partition_df.columns for column in RELATIONAL_FEATURES):
+    if any(col in partition_df.columns for col in feat_names):
         raise ValueError("Model partition already contains B1 relational features.")
     original_ids = partition_df["TransactionID"].to_numpy(copy=True)
     original_splits = partition_df["split"].astype("string").copy()
     relation_partition = merged_index.loc[
         merged_index["split"].astype("string").eq(split_name),
-        ["TransactionID", *RELATIONAL_FEATURES],
+        ["TransactionID", *feat_names],
     ]
     aligned = partition_df[["TransactionID"]].merge(
         relation_partition,
@@ -276,10 +292,9 @@ def attach_relational_features(
     aligned = aligned.drop(columns="_merge")
     if not np.array_equal(aligned["TransactionID"].to_numpy(), original_ids):
         raise AssertionError(f"{split_name} relational attachment changed row order.")
-
     result = partition_df.copy(deep=False)
-    for column in RELATIONAL_FEATURES:
-        result[column] = aligned[column].to_numpy(copy=False)
+    for col in feat_names:
+        result[col] = aligned[col].to_numpy(copy=False)
     if len(result) != len(partition_df):
         raise AssertionError(f"{split_name} row count changed after relational merge.")
     if not result["split"].astype("string").equals(original_splits):
@@ -287,35 +302,28 @@ def attach_relational_features(
     return result
 
 
-def load_b1_datasets() -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
+def load_b1_datasets(relation: str = "card_core_addr1") -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
+    feat_names = _feature_names(relation)
+    rel_path = _rel_output_path(relation)
     train_df, validation_df, dataset_summary = load_model_dataset()
-    if not RELATIONAL_FEATURES_PATH.exists():
+    if not rel_path.exists():
         raise FileNotFoundError(
-            "Relational features not found. Run "
-            "python -m src.features.build_relational_features first: "
-            f"{RELATIONAL_FEATURES_PATH}"
+            f"Relational features not found for relation {relation!r}. "
+            f"Run: python -m src.features.build_relational_features --relation {relation}\n"
+            f"Expected: {rel_path}"
         )
-    model_index = pd.read_parquet(
-        MODEL_DATASET_PATH,
-        columns=["TransactionID", "split"],
-    )
+    model_index = pd.read_parquet(MODEL_DATASET_PATH, columns=["TransactionID", "split"])
     validate_split_counts(model_index, "model_dataset.parquet B1 index")
-    relational_df = pd.read_parquet(RELATIONAL_FEATURES_PATH)
+    relational_df = pd.read_parquet(rel_path)
     if len(relational_df) != EXPECTED_ROWS:
         raise ValueError(
             f"Expected {EXPECTED_ROWS:,} relational rows; got {len(relational_df):,}."
         )
-    merged_index = validate_relational_merge(model_index, relational_df)
+    merged_index = validate_relational_merge(model_index, relational_df, feat_names)
 
-    train_with_relations = attach_relational_features(
-        train_df,
-        merged_index,
-        "train",
-    )
+    train_with_relations = attach_relational_features(train_df, merged_index, "train", feat_names)
     validation_with_relations = attach_relational_features(
-        validation_df,
-        merged_index,
-        "validation",
+        validation_df, merged_index, "validation", feat_names
     )
     if len(train_with_relations) != EXPECTED_SPLIT_COUNTS["train"]:
         raise AssertionError("B1 train row count changed.")
@@ -324,15 +332,16 @@ def load_b1_datasets() -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
     return train_with_relations, validation_with_relations, dataset_summary
 
 
-def build_b1_feature_manifest(b0_features: list[str]) -> list[str]:
+def build_b1_feature_manifest(
+    b0_features: list[str],
+    feat_names: list[str],
+) -> list[str]:
     if not b0_features or len(b0_features) != len(set(b0_features)):
         raise ValueError("B0 feature manifest is empty or contains duplicates.")
-    overlap = sorted(set(b0_features) & set(RELATIONAL_FEATURES))
+    overlap = sorted(set(b0_features) & set(feat_names))
     if overlap:
         raise ValueError(f"B0 feature manifest already contains B1 features: {overlap}.")
-    b1_features = [*b0_features, *RELATIONAL_FEATURES]
-    if b1_features[len(b0_features) :] != RELATIONAL_FEATURES:
-        raise AssertionError("B1 did not append exactly the four relational features.")
+    b1_features = [*b0_features, *feat_names]
     if len(b1_features) != len(b0_features) + 4:
         raise AssertionError("B1 must contain exactly four additional predictors.")
     return b1_features
@@ -341,20 +350,18 @@ def build_b1_feature_manifest(b0_features: list[str]) -> list[str]:
 def validate_model_columns_against_frozen_b0(
     model_columns: list[str],
     b0_features: list[str],
+    feat_names: list[str],
 ) -> None:
     actual_b0_features = [
-        column
-        for column in model_columns
-        if column not in FORBIDDEN_FEATURE_COLUMNS
-        and column not in RELATIONAL_FEATURES
+        col for col in model_columns
+        if col not in FORBIDDEN_FEATURE_COLUMNS and col not in feat_names
     ]
     if actual_b0_features != b0_features:
         missing = sorted(set(b0_features) - set(actual_b0_features))
         extra = sorted(set(actual_b0_features) - set(b0_features))
         raise ValueError(
-            "Current model dataset does not match the frozen B0 manifest: "
-            f"missing={missing}, extra={extra}, "
-            f"order_matches={actual_b0_features == b0_features}."
+            f"Current model dataset does not match the frozen B0 manifest: "
+            f"missing={missing}, extra={extra}."
         )
 
 
@@ -373,13 +380,9 @@ def load_frozen_category_mappings(
     if not isinstance(mappings, dict):
         raise ValueError("Canonical categorical mappings are missing.")
     if list(mappings) != categorical_columns:
-        raise ValueError(
-            "Canonical mapping columns differ from the frozen categorical manifest."
-        )
+        raise ValueError("Canonical mapping columns differ from the frozen categorical manifest.")
     for column, mapping in mappings.items():
-        if not isinstance(mapping, dict) or not all(
-            isinstance(value, int) for value in mapping.values()
-        ):
+        if not isinstance(mapping, dict) or not all(isinstance(v, int) for v in mapping.values()):
             raise TypeError(f"Invalid categorical mapping for {column}.")
     return mappings, file_sha256(path)
 
@@ -396,10 +399,7 @@ def apply_frozen_category_mappings(
         if column not in X_train or column not in X_validation:
             raise ValueError(f"Categorical predictor {column} is missing from B1.")
         X_train[column] = apply_category_mapping(X_train[column], mappings[column])
-        X_validation[column] = apply_category_mapping(
-            X_validation[column],
-            mappings[column],
-        )
+        X_validation[column] = apply_category_mapping(X_validation[column], mappings[column])
 
 
 def _parameter_values_match(left: Any, right: Any) -> bool:
@@ -419,14 +419,10 @@ def validate_frozen_lightgbm_configuration(
     for name in FROZEN_PARAMETER_NAMES:
         if name not in reference_parameters:
             raise ValueError(f"Frozen B0 parameter is missing: {name}.")
-        if not _parameter_values_match(
-            actual_parameters.get(name),
-            reference_parameters[name],
-        ):
+        if not _parameter_values_match(actual_parameters.get(name), reference_parameters[name]):
             raise ValueError(
                 f"B1 LightGBM parameter {name} differs from frozen B0: "
-                f"B1={actual_parameters.get(name)!r}, "
-                f"B0={reference_parameters[name]!r}."
+                f"B1={actual_parameters.get(name)!r}, B0={reference_parameters[name]!r}."
             )
     if actual_parameters.get("n_estimators") != MAX_ESTIMATORS:
         raise ValueError("B1 estimator cap must remain 6000.")
@@ -488,6 +484,7 @@ def build_comparison_to_b0(
 
 def build_b1_metadata(
     *,
+    relation: str,
     model: LGBMClassifier,
     b0_metadata: dict[str, Any],
     feature_builder_metadata: dict[str, Any],
@@ -500,25 +497,28 @@ def build_b1_metadata(
     learning_curve_summary: dict[str, Any],
     validation_metrics: dict[str, Any],
     b0_artifact_hashes: dict[str, str],
+    model_path: Path,
+    metrics_path: Path,
+    feat_imp_path: Path,
+    val_pred_path: Path,
+    learning_curve_path: Path,
+    comparison_path: Path,
+    report_dir: Path,
 ) -> dict[str, Any]:
-    numeric_columns = [
-        column for column in b1_features if column not in categorical_columns
-    ]
+    group_columns = RELATION_REGISTRY[relation]
+    feat_names = _feature_names(relation)
+    numeric_columns = [col for col in b1_features if col not in categorical_columns]
     return {
-        "experiment_name": "B1_relational_lightgbm_card_core_addr1",
+        "experiment_name": f"B1_relational_lightgbm_{relation}",
         "model_family": "LightGBM",
         "controlled_experiment_definition": (
             "B1 = frozen B0 feature set + four project-engineered relational features"
         ),
-        "relation_name": RELATION_NAME,
-        "relation_group_columns": GROUP_COLUMNS,
-        "relational_feature_names": RELATIONAL_FEATURES,
-        "relational_feature_source_path": repository_relative(
-            RELATIONAL_FEATURES_PATH
-        ),
-        "relational_feature_metadata_path": repository_relative(
-            RELATIONAL_METADATA_PATH
-        ),
+        "relation_name": relation,
+        "relation_group_columns": group_columns,
+        "relational_feature_names": feat_names,
+        "relational_feature_source_path": repository_relative(_rel_output_path(relation)),
+        "relational_feature_metadata_path": repository_relative(_rel_metadata_path(relation)),
         "b0_reference_metrics_path": repository_relative(B0_METRICS_PATH),
         "b0_reference_metadata_path": repository_relative(B0_METADATA_PATH),
         "b0_artifact_sha256": b0_artifact_hashes,
@@ -529,9 +529,7 @@ def build_b1_metadata(
         "numeric_feature_count": len(numeric_columns),
         "categorical_feature_columns": categorical_columns,
         "numeric_feature_columns": numeric_columns,
-        "categorical_mapping_reference": repository_relative(
-            CATEGORY_MAPPINGS_PATH
-        ),
+        "categorical_mapping_reference": repository_relative(CATEGORY_MAPPINGS_PATH),
         "categorical_mappings_sha256": category_mappings_sha256,
         "categorical_preprocessing_policy": (
             "Reuse the frozen B0 train-only mappings unchanged; missing and unknown "
@@ -546,12 +544,8 @@ def build_b1_metadata(
         "early_stopping_rounds": EARLY_STOPPING_ROUNDS,
         "early_stopping_metric": "average_precision",
         "best_iteration": int(model.best_iteration_),
-        "actual_stopping_iteration": int(
-            learning_curve_summary["actual_stopping_iteration"]
-        ),
-        "early_stopping_triggered": bool(
-            learning_curve_summary["early_stopping_triggered"]
-        ),
+        "actual_stopping_iteration": int(learning_curve_summary["actual_stopping_iteration"]),
+        "early_stopping_triggered": bool(learning_curve_summary["early_stopping_triggered"]),
         "train_row_count": int(train_row_count),
         "validation_row_count": int(validation_row_count),
         "evaluation_split": EVALUATION_SPLIT,
@@ -563,14 +557,12 @@ def build_b1_metadata(
             feature_builder_metadata["target_labels_used"]
         ),
         "original_ieee_features_removed_for_b1": False,
-        "model_path": repository_relative(MODEL_PATH),
-        "metrics_path": repository_relative(METRICS_PATH),
-        "feature_importance_path": repository_relative(FEATURE_IMPORTANCE_PATH),
-        "validation_predictions_path": repository_relative(
-            VALIDATION_PREDICTIONS_PATH
-        ),
-        "learning_curve_path": repository_relative(LEARNING_CURVE_PATH),
-        "comparison_to_b0_path": repository_relative(COMPARISON_PATH),
+        "model_path": repository_relative(model_path),
+        "metrics_path": repository_relative(metrics_path),
+        "feature_importance_path": repository_relative(feat_imp_path),
+        "validation_predictions_path": repository_relative(val_pred_path),
+        "learning_curve_path": repository_relative(learning_curve_path),
+        "comparison_to_b0_path": repository_relative(comparison_path),
         "versions": {
             "python": platform.python_version(),
             "pandas": pd.__version__,
@@ -583,98 +575,99 @@ def build_b1_metadata(
     }
 
 
-def main() -> None:
-    b0_hashes_before = snapshot_b0_artifacts()
+def run_for_relation(relation: str) -> None:
+    """Full B1 training pipeline for a named relation."""
+    if relation not in RELATION_REGISTRY:
+        raise ValueError(
+            f"Unknown relation: {relation!r}. Supported: {sorted(RELATION_REGISTRY)}."
+        )
+    feat_names = _feature_names(relation)
+
+    (
+        model_path,
+        report_dir,
+        metrics_path,
+        metadata_path,
+        feat_imp_path,
+        val_pred_path,
+        learning_curve_path,
+        comparison_path,
+    ) = _resolve_relation_paths(relation)
+
+    # The frozen B0 and the archived B1-card_core_addr1 are both hash-pinned
+    # before training and re-checked afterwards, so no run of this script can
+    # silently replace an artifact another experiment is compared against.
+    all_protected = [*B0_PROTECTED_PATHS, *B1_CARD_CORE_ADDR1_PROTECTED]
+    b0_hashes_before = snapshot_protected_artifacts(all_protected)
+    if relation == "card_core_addr1" and any(
+        p.exists() for p in B1_CARD_CORE_ADDR1_PROTECTED
+    ):
+        raise FileExistsError(
+            "B1-card_core_addr1 is frozen and archived as the original relational "
+            "experiment; delete its artifacts deliberately before regenerating them."
+        )
     b0_metadata = load_frozen_b0_metadata()
-    feature_builder_metadata = load_feature_builder_metadata()
+    feature_builder_metadata = load_feature_builder_metadata(relation)
     b0_metrics = read_json(B0_METRICS_PATH)
 
-    print(f"Loading frozen B0 train/validation data: {MODEL_DATASET_PATH}")
-    print(f"Loading relational features: {RELATIONAL_FEATURES_PATH}")
-    train_df, validation_df, _ = load_b1_datasets()
+    print(f"[{relation}] Loading frozen B0 train/validation data: {MODEL_DATASET_PATH}")
+    print(f"[{relation}] Loading relational features: {_rel_output_path(relation)}")
+    train_df, validation_df, _ = load_b1_datasets(relation)
 
     b0_features = list(b0_metadata["feature_columns"])
-    validate_model_columns_against_frozen_b0(
-        list(train_df.columns),
-        b0_features,
-    )
-    validate_model_columns_against_frozen_b0(
-        list(validation_df.columns),
-        b0_features,
-    )
-    b1_features = build_b1_feature_manifest(b0_features)
+    validate_model_columns_against_frozen_b0(list(train_df.columns), b0_features, feat_names)
+    validate_model_columns_against_frozen_b0(list(validation_df.columns), b0_features, feat_names)
+    b1_features = build_b1_feature_manifest(b0_features, feat_names)
     if len(b1_features) != EXPECTED_B1_FEATURE_COUNT:
         raise ValueError(
-            "B1 predictor-count sanity check failed: "
+            f"B1 predictor-count sanity check failed: "
             f"expected {EXPECTED_B1_FEATURE_COUNT}, got {len(b1_features)}."
         )
 
     categorical_columns = list(b0_metadata["categorical_feature_columns"])
-    raw_train_categorical = identify_categorical_columns(train_df[b1_features])
-    raw_validation_categorical = identify_categorical_columns(
-        validation_df[b1_features]
-    )
-    if raw_train_categorical != categorical_columns:
+    raw_train_cat = identify_categorical_columns(train_df[b1_features])
+    raw_val_cat = identify_categorical_columns(validation_df[b1_features])
+    if raw_train_cat != categorical_columns:
         raise TypeError("B1 categorical features differ from frozen B0.")
-    if raw_validation_categorical != categorical_columns:
+    if raw_val_cat != categorical_columns:
         raise TypeError("B1 validation categorical features differ from frozen B0.")
-    for column in RELATIONAL_FEATURES:
-        if not is_numeric_dtype(train_df[column].dtype):
-            raise TypeError(f"B1 relational predictor {column} is not numeric.")
+    for col in feat_names:
+        if not is_numeric_dtype(train_df[col].dtype):
+            raise TypeError(f"B1 relational predictor {col} is not numeric.")
 
-    validation_metadata = validation_df[
-        ["TransactionID", "TransactionDT", "isFraud"]
-    ].copy()
+    validation_metadata = validation_df[["TransactionID", "TransactionDT", "isFraud"]].copy()
     y_train = train_df["isFraud"].astype("int8").copy()
     y_validation = validation_df["isFraud"].astype("int8").copy()
     X_train = train_df[b1_features].copy()
     X_validation = validation_df[b1_features].copy()
     del train_df, validation_df
 
-    mappings, mapping_sha256 = load_frozen_category_mappings(
-        categorical_columns
-    )
-    print("Applying frozen B0 categorical mappings (no fitting)...")
-    apply_frozen_category_mappings(
-        X_train,
-        X_validation,
-        categorical_columns,
-        mappings,
-    )
+    mappings, mapping_sha256 = load_frozen_category_mappings(categorical_columns)
+    print(f"[{relation}] Applying frozen B0 categorical mappings (no fitting)...")
+    apply_frozen_category_mappings(X_train, X_validation, categorical_columns, mappings)
     assert_supported_model_dtypes(X_train, "B1 training predictors")
     assert_supported_model_dtypes(X_validation, "B1 validation predictors")
 
     scale_pos_weight = calculate_scale_pos_weight(y_train)
-    if not np.isclose(
-        scale_pos_weight,
-        float(b0_metadata["scale_pos_weight"]),
-        rtol=0.0,
-        atol=0.0,
-    ):
+    if not np.isclose(scale_pos_weight, float(b0_metadata["scale_pos_weight"]), rtol=0.0, atol=0.0):
         raise ValueError("B1 train-only class weight differs from frozen B0.")
-    model = build_lightgbm_model(
-        scale_pos_weight,
-        n_estimators=MAX_ESTIMATORS,
-    )
+    model = build_lightgbm_model(scale_pos_weight, n_estimators=MAX_ESTIMATORS)
     validate_frozen_lightgbm_configuration(model, b0_metadata)
 
-    print(f"Train rows: {len(X_train):,}")
-    print(f"Validation rows: {len(X_validation):,}")
-    print(f"B0 predictors: {len(b0_features):,}")
-    print(f"B1 predictors: {len(b1_features):,}")
-    print(f"Categorical predictors: {len(categorical_columns):,}")
-    print(f"scale_pos_weight: {scale_pos_weight:.15f}")
+    print(f"[{relation}] Train rows: {len(X_train):,}")
+    print(f"[{relation}] Validation rows: {len(X_validation):,}")
+    print(f"[{relation}] B0 predictors: {len(b0_features):,}")
+    print(f"[{relation}] B1 predictors: {len(b1_features):,}")
+    print(f"[{relation}] Categorical predictors: {len(categorical_columns):,}")
+    print(f"[{relation}] scale_pos_weight: {scale_pos_weight:.15f}")
 
     evaluation_results: dict[str, dict[str, list[float]]] = {}
     callbacks = [
-        lightgbm.early_stopping(
-            stopping_rounds=EARLY_STOPPING_ROUNDS,
-            first_metric_only=True,
-        ),
+        lightgbm.early_stopping(stopping_rounds=EARLY_STOPPING_ROUNDS, first_metric_only=True),
         lightgbm.record_evaluation(evaluation_results),
         lightgbm.log_evaluation(period=LOG_EVALUATION_PERIOD),
     ]
-    print("Training B1 LightGBM...")
+    print(f"[{relation}] Training B1 LightGBM...")
     model.fit(
         X_train,
         y_train,
@@ -695,8 +688,7 @@ def main() -> None:
         maximum_estimators=MAX_ESTIMATORS,
     )
     validation_scores = model.predict_proba(
-        X_validation,
-        num_iteration=model.best_iteration_,
+        X_validation, num_iteration=model.best_iteration_
     )[:, 1]
     if len(validation_scores) != EXPECTED_SPLIT_COUNTS[EVALUATION_SPLIT]:
         raise AssertionError("B1 validation prediction count is incorrect.")
@@ -706,25 +698,19 @@ def main() -> None:
     metrics = evaluate_validation(y_validation, validation_scores)
     metrics.update(
         {
-            "model": "B1_relational_lightgbm",
-            "relation": RELATION_NAME,
+            "model": f"B1_relational_lightgbm_{relation}",
+            "relation": relation,
             "weighting": "weighted",
             "scale_pos_weight": float(scale_pos_weight),
             "maximum_estimators": MAX_ESTIMATORS,
-            "actual_stopping_iteration": int(
-                learning_curve_summary["actual_stopping_iteration"]
-            ),
+            "actual_stopping_iteration": int(learning_curve_summary["actual_stopping_iteration"]),
             "best_iteration": int(model.best_iteration_),
             "best_validation_average_precision": float(
                 learning_curve_summary["best_validation_average_precision"]
             ),
             "early_stopping_rounds": EARLY_STOPPING_ROUNDS,
-            "early_stopping_triggered": bool(
-                learning_curve_summary["early_stopping_triggered"]
-            ),
-            "estimator_cap_reached": bool(
-                learning_curve_summary["estimator_cap_reached"]
-            ),
+            "early_stopping_triggered": bool(learning_curve_summary["early_stopping_triggered"]),
+            "estimator_cap_reached": bool(learning_curve_summary["estimator_cap_reached"]),
         }
     )
     comparison = build_comparison_to_b0(b0_metrics, metrics)
@@ -734,21 +720,19 @@ def main() -> None:
     validation_predictions = validation_metadata.copy()
     validation_predictions["prediction"] = validation_scores
 
-    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    model.booster_.save_model(str(MODEL_PATH), num_iteration=model.best_iteration_)
-    write_json(METRICS_PATH, metrics)
-    feature_importance.to_csv(FEATURE_IMPORTANCE_PATH, index=False)
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    report_dir.mkdir(parents=True, exist_ok=True)
+    model.booster_.save_model(str(model_path), num_iteration=model.best_iteration_)
+    write_json(metrics_path, metrics)
+    feature_importance.to_csv(feat_imp_path, index=False)
     validation_predictions.to_parquet(
-        VALIDATION_PREDICTIONS_PATH,
-        index=False,
-        engine="pyarrow",
-        compression="snappy",
+        val_pred_path, index=False, engine="pyarrow", compression="snappy"
     )
-    learning_curve.to_csv(LEARNING_CURVE_PATH, index=False)
-    comparison.to_csv(COMPARISON_PATH, index=False)
+    learning_curve.to_csv(learning_curve_path, index=False)
+    comparison.to_csv(comparison_path, index=False)
 
-    metadata = build_b1_metadata(
+    b1_meta = build_b1_metadata(
+        relation=relation,
         model=model,
         b0_metadata=b0_metadata,
         feature_builder_metadata=feature_builder_metadata,
@@ -761,38 +745,48 @@ def main() -> None:
         learning_curve_summary=learning_curve_summary,
         validation_metrics=metrics,
         b0_artifact_hashes=b0_hashes_before,
+        model_path=model_path,
+        metrics_path=metrics_path,
+        feat_imp_path=feat_imp_path,
+        val_pred_path=val_pred_path,
+        learning_curve_path=learning_curve_path,
+        comparison_path=comparison_path,
+        report_dir=report_dir,
     )
-    write_json(METADATA_PATH, metadata)
-    assert_b0_artifacts_unchanged(b0_hashes_before)
+    write_json(metadata_path, b1_meta)
+    assert_protected_artifacts_unchanged(b0_hashes_before, all_protected, label="frozen B0/B1")
 
     expected_artifacts = [
-        MODEL_PATH,
-        METRICS_PATH,
-        METADATA_PATH,
-        FEATURE_IMPORTANCE_PATH,
-        VALIDATION_PREDICTIONS_PATH,
-        LEARNING_CURVE_PATH,
-        COMPARISON_PATH,
+        model_path, metrics_path, metadata_path, feat_imp_path,
+        val_pred_path, learning_curve_path, comparison_path,
     ]
-    missing_artifacts = [str(path) for path in expected_artifacts if not path.exists()]
-    if missing_artifacts:
-        raise OSError(f"B1 artifacts were not created: {missing_artifacts}.")
+    missing = [str(p) for p in expected_artifacts if not p.exists()]
+    if missing:
+        raise OSError(f"B1 artifacts were not created: {missing}.")
 
-    print(f"Best iteration: {model.best_iteration_:,}")
-    print(
-        "Actual stopping iteration: "
-        f"{learning_curve_summary['actual_stopping_iteration']:,}"
+    print(f"[{relation}] Best iteration: {model.best_iteration_:,}")
+    print(f"[{relation}] Actual stopping iteration: {learning_curve_summary['actual_stopping_iteration']:,}")
+    print(f"[{relation}] Early stopping triggered: {'YES' if learning_curve_summary['early_stopping_triggered'] else 'NO'}")
+    print(f"[{relation}] Validation PR-AUC:  {metrics['pr_auc']:.12f}")
+    print(f"[{relation}] Validation ROC-AUC: {metrics['roc_auc']:.12f}")
+    print(f"[{relation}] Model saved: {model_path}")
+    print(f"[{relation}] Reports saved: {report_dir}")
+    print(f"[{relation}] Frozen B0 artifacts unchanged: YES")
+    print(f"[{relation}] Final test evaluated: NO")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Train B1 relational LightGBM for a given entity relation."
     )
-    print(
-        "Early stopping triggered: "
-        f"{'YES' if learning_curve_summary['early_stopping_triggered'] else 'NO'}"
+    parser.add_argument(
+        "--relation",
+        default="card_core_addr1",
+        choices=sorted(RELATION_REGISTRY),
+        help="Relation to train (default: card_core_addr1).",
     )
-    print(f"Validation PR-AUC: {metrics['pr_auc']:.12f}")
-    print(f"Validation ROC-AUC: {metrics['roc_auc']:.12f}")
-    print(f"Model saved: {MODEL_PATH}")
-    print(f"Reports saved: {REPORT_DIR}")
-    print("Frozen B0 artifacts unchanged: YES")
-    print("Final test evaluated: NO")
+    args = parser.parse_args()
+    run_for_relation(args.relation)
 
 
 if __name__ == "__main__":
