@@ -1,0 +1,17 @@
+# Python 3.14.0
+#
+# Versions pinned to the environment the frozen B0 and B1 artifacts were
+# produced with (see the "versions" block in reports/baseline/baseline_metadata.json
+# and reports/b1/*/metadata.json). Reproducing the recorded metrics requires
+# these exact versions; LightGBM in particular must be >= 4.7 because the
+# trainers pass the keyword-only eval_X / eval_y arguments to LGBMClassifier.fit.
+
+lightgbm==4.7.0
+numpy==2.5.2
+pandas==3.0.5
+pyarrow==25.0.1
+scikit-learn==1.9.0
+scipy==1.18.0
+
+# Test suite
+pytest==9.1.0
