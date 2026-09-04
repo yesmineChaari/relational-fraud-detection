@@ -13,5 +13,19 @@ pyarrow==25.0.1
 scikit-learn==1.9.0
 scipy==1.18.0
 
+# Graph deep learning stack (G1). Plain PyTorch, not PyTorch Geometric or
+# DGL: the temporal contract (src/graph/temporal_contract.py) rules out a
+# library's stock neighbour sampler outright, so the sampler is hand-written
+# regardless of which framework is chosen, and a GraphSAGE mean-aggregator
+# is small enough to hand-roll on tensors. This also sidesteps a real
+# Python 3.14 compatibility gap: PyG has no Python-version constraint on its
+# own wheel but pulls compiled extensions that lag new CPython releases, and
+# DGL is not published as an installable PyPI wheel at all. Verified in this
+# environment: torch==2.14.0 has an official cp314 win_amd64 wheel and a
+# minimal forward/backward pass runs (see reports/environment and
+# tests/test_g1_dependency_stack.py). CPU-only; no CUDA device is available
+# in this environment.
+torch==2.14.0
+
 # Test suite
 pytest==9.1.0

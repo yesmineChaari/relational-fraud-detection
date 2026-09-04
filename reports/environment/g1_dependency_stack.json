@@ -1,0 +1,25 @@
+{
+  "framework_decision": "hand_rolled_pytorch",
+  "alternatives_considered": [
+    "pytorch_geometric",
+    "deep_graph_library"
+  ],
+  "decision_rationale": "The temporal contract (src/graph/temporal_contract.py) rules out using a library's stock neighbour sampler: hop-2 admissibility is target-anchored, not the intermediate node's own timestamp, which is not how a generic k-hop sampler works. The sampler is hand-written regardless of the framework, and a GraphSAGE mean-aggregator is small enough to hand-roll directly on tensors, which removes a dependency whose sampler semantics would otherwise need auditing for temporal safety on top of the one being written anyway. This environment runs Python 3.14.0, ahead of what the graph-library ecosystem has caught up with: torch_geometric's own wheel is pure Python and installs cleanly, but its accelerated extensions (torch-scatter, pyg-lib) are not published on PyPI at all -- they ship from a custom index keyed to specific torch/CUDA build combinations, and no build exists yet for torch 2.14 or cp314 -- so the richer sampler ecosystem PyG is normally chosen for is not actually usable here. DGL is not published as an installable PyPI wheel at all (only two ancient, unrelated 0.1.x releases exist under that name). Plain torch==2.14.0 has an official cp314 win_amd64 wheel on PyPI and was verified to install and run a forward/backward pass in this environment. No CUDA device is available here, so the CPU build is used.",
+  "python_3_14_blocked_chosen_stack": false,
+  "versions": {
+    "python": "3.14.0",
+    "torch": "2.14.0+cpu",
+    "numpy": "2.5.2",
+    "pandas": "3.0.5"
+  },
+  "forward_backward_pass": {
+    "forward_output_shape": [
+      8,
+      1
+    ],
+    "loss": -4.04494571685791,
+    "w2_grad_norm": 12.322916030883789,
+    "cuda_available": false
+  },
+  "generated_at_utc": "2026-09-04T00:04:06.034664+00:00"
+}
