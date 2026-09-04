@@ -1,0 +1,50 @@
+{
+  "model": "G1_graphsage_lightgbm_card1",
+  "evaluation_split": "validation",
+  "n_transactions": 88581,
+  "n_fraud": 3042,
+  "fraud_rate": 0.03434145019812375,
+  "pr_auc": 0.6264202966198482,
+  "roc_auc": 0.9138577334326102,
+  "ranking_metrics": {
+    "top_0.5_pct": {
+      "fraction": 0.005,
+      "k": 443,
+      "frauds_found": 430,
+      "precision": 0.9706546275395034,
+      "recall": 0.14135437212360288
+    },
+    "top_1_pct": {
+      "fraction": 0.01,
+      "k": 886,
+      "frauds_found": 845,
+      "precision": 0.95372460496614,
+      "recall": 0.2777777777777778
+    },
+    "top_2_pct": {
+      "fraction": 0.02,
+      "k": 1772,
+      "frauds_found": 1402,
+      "precision": 0.791196388261851,
+      "recall": 0.4608809993425378
+    },
+    "top_5_pct": {
+      "fraction": 0.05,
+      "k": 4430,
+      "frauds_found": 2003,
+      "precision": 0.4521444695259594,
+      "recall": 0.65844838921762
+    }
+  },
+  "test_evaluated": false,
+  "relation": "card1",
+  "weighting": "weighted",
+  "scale_pos_weight": 27.434310083918007,
+  "maximum_estimators": 6000,
+  "actual_stopping_iteration": 6000,
+  "best_iteration": 5965,
+  "best_validation_average_precision": 0.6264202966198503,
+  "early_stopping_rounds": 200,
+  "early_stopping_triggered": false,
+  "estimator_cap_reached": true
+}
