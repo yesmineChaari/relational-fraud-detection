@@ -240,10 +240,11 @@ def validate_embedding_merge(
 
 def load_g1_datasets(
     relation: str = RELATION,
+    embeddings_path: Path = GRAPH_EMBEDDINGS_PATH,
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
     feat_names = embedding_feature_names()
     train_df, validation_df, dataset_summary = load_model_dataset()
-    embeddings_df = load_embeddings(relation, feat_names)
+    embeddings_df = load_embeddings(relation, feat_names, path=embeddings_path)
     model_index = pd.read_parquet(MODEL_DATASET_PATH, columns=["TransactionID", "split"])
     validate_split_counts(model_index, "model_dataset.parquet G1 index")
     merged_index = validate_embedding_merge(model_index, embeddings_df, feat_names)

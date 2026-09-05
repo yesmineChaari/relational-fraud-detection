@@ -145,6 +145,17 @@ VALIDATION_MONITOR_SIZE = 15_000
 INFERENCE_BATCH_SIZE = 4_096
 AGGREGATOR = "mean"
 
+# Readout modes for the final layer. The default keeps the target's own
+# transformed features alongside the aggregated neighbourhood, which is
+# standard GraphSAGE. `neighbourhood_only` drops the self-contribution so the
+# embedding carries strictly what the neighbourhood adds -- used by the G1
+# attribution controls, where the downstream tabular model already holds every
+# self feature and a self-inclusive embedding cannot isolate the relational
+# signal.
+READOUT_SELF_AND_NEIGHBOURHOOD = "self_and_neighbourhood"
+READOUT_NEIGHBOURHOOD_ONLY = "neighbourhood_only"
+READOUT_MODES = (READOUT_SELF_AND_NEIGHBOURHOOD, READOUT_NEIGHBOURHOOD_ONLY)
+
 
 @dataclass(frozen=True)
 class FeatureScaler:
@@ -295,10 +306,22 @@ class TemporalGraphSAGEEncoder(nn.Module):
     standard GraphSAGE convention.
     """
 
-    def __init__(self, input_dim: int, hidden_dim: int, embedding_dim: int) -> None:
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int,
+        embedding_dim: int,
+        readout: str = READOUT_SELF_AND_NEIGHBOURHOOD,
+    ) -> None:
         super().__init__()
+        if readout not in READOUT_MODES:
+            raise ValueError(f"readout must be one of {READOUT_MODES}; got {readout!r}.")
+        self.readout = readout
         self.layer1 = nn.Linear(input_dim * 2, hidden_dim)
-        self.layer2 = nn.Linear(input_dim + hidden_dim, embedding_dim)
+        layer2_input_dim = (
+            hidden_dim if readout == READOUT_NEIGHBOURHOOD_ONLY else input_dim + hidden_dim
+        )
+        self.layer2 = nn.Linear(layer2_input_dim, embedding_dim)
 
     def forward(
         self,
@@ -314,16 +337,26 @@ class TemporalGraphSAGEEncoder(nn.Module):
         h1 = h1 * hop1_mask.unsqueeze(-1).to(h1.dtype)
 
         agg1 = masked_mean(h1, hop1_mask, dim=1)
-        embedding = F.relu(self.layer2(torch.cat([x_target, agg1], dim=-1)))
+        if self.readout == READOUT_NEIGHBOURHOOD_ONLY:
+            layer2_input = agg1
+        else:
+            layer2_input = torch.cat([x_target, agg1], dim=-1)
+        embedding = F.relu(self.layer2(layer2_input))
         return l2_normalize(embedding, dim=-1)
 
 
 class GraphSAGEWithHead(nn.Module):
     """The encoder plus a disposable linear classification head."""
 
-    def __init__(self, input_dim: int, hidden_dim: int, embedding_dim: int) -> None:
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int,
+        embedding_dim: int,
+        readout: str = READOUT_SELF_AND_NEIGHBOURHOOD,
+    ) -> None:
         super().__init__()
-        self.encoder = TemporalGraphSAGEEncoder(input_dim, hidden_dim, embedding_dim)
+        self.encoder = TemporalGraphSAGEEncoder(input_dim, hidden_dim, embedding_dim, readout)
         self.head = nn.Linear(embedding_dim, 1)
 
     def forward(self, *args, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
@@ -649,6 +682,7 @@ def build_metadata(result: dict[str, Any]) -> dict[str, Any]:
             "embedding_dim": EMBEDDING_DIM,
             "activation": "relu",
             "normalization": "l2_per_layer",
+            "readout": READOUT_SELF_AND_NEIGHBOURHOOD,
             "empty_neighborhood_policy": (
                 "masked mean over zero valid neighbours is defined as the zero "
                 "vector; a node falls back to its own transformed features at "

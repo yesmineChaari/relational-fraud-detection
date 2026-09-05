@@ -20,7 +20,10 @@ fraud-relational-ml/
 │     └── Selection of optimal relational substrates without validation snooping
 ├── 5. Controlled Alternative B1 Benchmarks
 │     └── B0 (0.64914) vs B1-card_core_addr1 (0.64401) vs B1-card1 (0.65504)
-└── 6. Next Step: G1 Graph Neural Network (GNN) Neighborhood Embeddings
+├── 6. G1 Graph Neural Network Neighborhood Embeddings
+│     └── GraphSAGE embedding + B0 predictors: PR-AUC = 0.62642, below both baselines
+└── 7. G1 Attribution Controls (dilution, readout, cross-fitting, budget)
+      └── Verdict: most of the regression was an artifact; corrected G1 reaches B0, not B1
 ```
 
 ---
@@ -186,20 +189,32 @@ fraud-relational-ml/
 │   │   ├── make_temporal_split.py                     # Temporal split generator
 │   │   └── build_model_dataset.py                     # Ingestion & cleaning pipeline
 │   ├── graph/
-│   │   └── analyze_relations.py                       # Entity & graph diagnostic audit
+│   │   ├── analyze_relations.py                       # Entity & graph diagnostic audit
+│   │   ├── temporal_contract.py                       # Strictly-before admissibility rule
+│   │   ├── temporal_sampler.py                        # Target-anchored neighbour sampler
+│   │   ├── build_transaction_graph.py                 # card1 node & entity-edge tables
+│   │   ├── train_graphsage_encoder.py                 # Frozen G1 GraphSAGE encoder
+│   │   └── train_graphsage_variants.py                # G1 attribution-control encoders
 │   ├── features/
 │   │   ├── build_relational_features.py               # Generalized feature engineer
 │   │   └── screen_relations.py                        # Train-only screening module
 │   └── models/
 │       ├── train_lightgbm_baseline.py                 # Frozen B0 LightGBM trainer
 │       ├── train_lightgbm_relational.py               # Parametrized B1 LightGBM trainer
+│       ├── train_lightgbm_g1.py                       # Frozen G1 embedding + LightGBM trainer
+│       ├── train_lightgbm_g1_controls.py              # G1 attribution-control runs
+│       ├── compare_g1_controls.py                     # Control comparison & pre-agreed verdict
 │       └── compare_b1_variants.py                     # Cross-variant comparison generator
 └── tests/
     ├── test_lightgbm_baseline.py                      # B0 unit test suite
     ├── test_lightgbm_relational.py                    # B1 merge & invariant test suite
     ├── test_relational_features.py                    # Feature calculation unit tests
     ├── test_relational_screening.py                   # Stage A & B screening test suite (40 tests)
-    └── test_relational_models.py                      # Multi-model verification suite (62 tests)
+    ├── test_relational_models.py                      # Multi-model verification suite (62 tests)
+    ├── test_temporal_sampler.py                       # Strictly-before sampling correctness
+    ├── test_graphsage_encoder.py                      # Encoder & leakage-guard suite
+    ├── test_lightgbm_g1.py                            # G1 merge & significance suite
+    └── test_g1_controls.py                            # Attribution-control suite (49 tests)
 ```
 
 ---
@@ -229,14 +244,83 @@ python -m src.models.train_lightgbm_relational --relation card1_card2
 # 4. Generate cross-model comparison report
 python -m src.models.compare_b1_variants
 
-# 5. Run complete test suite (165 tests)
+# 5. Build the card1 graph, train the G1 encoder, and run G1
+python -m src.graph.build_transaction_graph
+python -m src.graph.train_graphsage_encoder
+python -m src.models.train_lightgbm_g1
+
+# 6. G1 attribution controls, then the comparison and pre-agreed verdict
+python -m src.graph.train_graphsage_variants --skip-existing
+python -m src.models.train_lightgbm_g1_controls --skip-existing
+python -m src.models.compare_g1_controls
+
+# 7. Run complete test suite
 python -m pytest tests/ -v
 ```
 
+Both control runners accept `--skip-existing`, so an interrupted sweep resumes
+rather than recomputing blocks that are already published. The encoder variants
+each take tens of minutes on CPU; the frozen B0, B1 and G1 artifacts are
+hash-verified before and after every control run and are never rewritten.
+
 ---
 
-## 8. Next Phase: Transition to G1 (Graph Neural Networks)
+## 8. Stage G1: Graph Neural Network Relational Embeddings
 
-With `card1` established as the optimal relational entity substrate (100% coverage, 73.05% recurring entities, highest univariate & multivariate PR-AUC), the project proceeds to **G1**:
-- **Graph Construction**: Transaction nodes connected via shared `card1` (and bipartite multi-relational edges).
-- **GNN Neighborhood Aggregation**: Inductive message passing (GraphSAGE / Relational GCN) to capture multi-hop fraud rings that tree-based tabular models cannot represent.
+With `card1` established as the relational substrate, G1 replaced B1's four scalar summaries with a learned representation: a 2-hop inductive GraphSAGE encoder (fan-out 10x10, mean aggregator, 32-dimensional embedding) trained on `isFraud` through a disposable classification head, feeding its per-transaction embedding into the frozen B0 LightGBM configuration.
+
+Neighbourhoods are drawn under the strictly-before temporal contract (`src/graph/temporal_contract.py`): the target's own timestamp bounds every hop, so no transaction can aggregate information from transactions that had not yet happened.
+
+### First Result
+
+| Model Variant | Predictors | Validation PR-AUC | Validation ROC-AUC | $\Delta \text{PR-AUC}_{\text{val}}$ vs B0 |
+| :--- | :--- | :--- | :--- | :--- |
+| **`B0` (Baseline)** | 435 | **0.64914** | **0.92502** | Baseline |
+| **`B1-card1`** | 439 | **0.65504** | **0.92807** | **+0.00590** |
+| **`G1-card1`** | 467 | **0.62642** | **0.91386** | $-0.02272$ |
+
+G1 scored below both, with paired bootstrap intervals excluding zero against each. That established the size of the gap but not its cause. Three properties of the run each offered an explanation having nothing to do with graph structure being unhelpful:
+
+1. **The embedding was not a relational feature block.** Encoder input was the same 435 raw predictors LightGBM already receives, and the standard GraphSAGE readout concatenates the target's own transformed features onto the aggregated neighbourhood, so the block partly re-encoded signal the model already held.
+2. **The encoder was fit on the rows the downstream model trains on, without cross-fitting.** Train-row embeddings carry information from those rows' own labels; validation-row embeddings do not.
+3. **The encoder was barely trained.** Best epoch 4, roughly 0.40 passes over the train partition, early-stopped on a 15,000-row validation subsample.
+
+### Attribution Controls (`reports/g1_controls/`)
+
+Four controls separate those confounds from the graph verdict. The three encoder controls share one raised training budget, so each is read against `extended_budget` rather than against the frozen run, and only one thing changes at a time. Every control is measured by paired bootstrap against B0, B1-card1 **and** the frozen G1, and all three references are hash-pinned before and after each run.
+
+| Control | Isolates | Validation PR-AUC | $\Delta$ vs B0 (95% CI) | $\Delta$ vs B1-card1 (95% CI) | $\Delta$ vs G1 (95% CI) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `shuffled_embedding` | Split-search dilution | 0.62957 | $-0.01957$ $[-0.0247, -0.0145]$ | $-0.02547$ $[-0.0308, -0.0201]$ | $+0.00315$ $[-0.0024, +0.0087]$ |
+| `extended_budget` | Training budget, monitor size | 0.61485 | $-0.03429$ $[-0.0407, -0.0278]$ | $-0.04019$ $[-0.0468, -0.0337]$ | $-0.01157$ $[-0.0167, -0.0064]$ |
+| `neighbourhood_only` | Self-contribution in readout | **0.64494** | $-0.00420$ $[-0.0095, +0.0010]$ | $-0.01010$ $[-0.0155, -0.0048]$ | $+0.01852$ $[+0.0123, +0.0247]$ |
+| `cross_fitted` | Label information in train rows | 0.57948 | $-0.06966$ $[-0.0767, -0.0627]$ | $-0.07556$ $[-0.0828, -0.0683]$ | $-0.04694$ $[-0.0540, -0.0398]$ |
+
+### Key Scientific Insights
+
+1. **Most of the Original Regression was Split-Search Dilution, Not the Graph**:
+   - A randomly-aligned 32-column block, holding the real block's per-split marginals and destroying only its row alignment, costs $-0.01957$ PR-AUC against B0 on its own.
+   - That accounts for **86.1%** of G1's $-0.02272$ gap, and the shuffled null is statistically **indistinguishable from the real G1 block** ($+0.00315$, CI spans zero). The frozen embedding added nothing that a noise block of the same width did not.
+2. **The Readout was Re-encoding Features the Model Already Had**:
+   - Dropping the target's own features from the final readout recovers $+0.01852$ PR-AUC over the frozen G1 and brings the stage to **statistical parity with B0** (CI spans zero).
+   - This is the single largest correction, and it confirms that a self-inclusive readout cannot isolate a relational contribution when the downstream model already holds every self feature.
+3. **Training the Encoder Harder Made the Pipeline Worse**:
+   - Raising the budget from 0.40 to 2.0 passes over the train partition, and selecting on the full validation partition instead of a 15,000-row subsample, *lowered* downstream PR-AUC to 0.61485 -- significantly below the frozen G1 ($-0.01157$, CI excludes zero).
+   - The importance tables show why: the more the model leans on the embedding block, the worse it scores. `extended_budget` places **30 of 32** embeddings in the top 50 of 467 features by gain and performs worst; `neighbourhood_only` places 13 and performs best; LightGBM correctly ranks the *shuffled* block lowest of all (10 of 32) and still beats both un-cross-fitted real-embedding runs.
+   - This is the signature of a non-transferable feature: high train-side gain, negative validation value. Structurally it is the same trap as `card_core_addr1`'s missingness sentinel in Section 5, one level up.
+4. **The Verdict, by a Rule Fixed Before the Runs**:
+   - The stopping rule agreed in advance: if cross-fitting **and** the neighbourhood-only readout each bring G1 to at least parity with B1-card1, the regression was an encoder artifact and the stage continues; otherwise the negative result stands as a genuine finding.
+   - `neighbourhood_only` reaches B0 parity but remains significantly below B1-card1 ($-0.01010$, CI excludes zero), so the rule resolves to **`negative_result_stands`**: a supervised graph encoder on this relation, corrected for readout and training budget, does not beat four scalar relational summaries. The G1 epic closes and effort returns to hardening the B1 claim.
+   - The corrected picture is nonetheless very different from the original one. The claim "learned embeddings actively hurt" is **not** supported by these controls; the defensible claim is that they reach the tabular baseline and no further.
+
+### Known Limitation of the Cross-Fitting Control
+
+`cross_fitted` embeds train rows with the K fold encoders and validation/test rows with a full-train encoder, and each encoder was initialised from a different seed. Nothing constrains independently initialised encoders to agree on a latent basis, so an embedding column denotes a different direction either side of the train/validation boundary. The published diagnostic measures exactly this: a standardised train-vs-validation mean gap of **0.390, with 11 of 32 columns above 0.5**, against 0.123-0.233 and 0-2 columns for every single-encoder block in the table.
+
+Its $-0.07556$ therefore confounds removing label leakage with misaligning the feature block, and is **not** evidence for what cross-fitting alone costs or gains. The verdict does not rest on it: the rule requires *both* verdict controls to reach parity, and `neighbourhood_only` -- a single-encoder block with no such defect -- does not. A corrected run should share one initialisation across the full-train and fold encoders, or align each fold encoder's output to the full-train encoder before assembling the block. The limitation is recorded in `reports/g1_controls/g1_control_summary.json` under `known_limitations`.
+
+---
+
+## 9. Next Phase
+
+With the G1 stage closed, remaining effort goes to hardening the B1 claim: a permuted-entity null control for the B1 gain, per-feature ablation of the four relational summaries, seed-variance measurement across training runs, and the one-shot final test protocol. The estimator cap remains binding for every LightGBM run in this repository (`best_iteration` at or near the 6,000 ceiling), which is an open issue affecting all reported numbers.

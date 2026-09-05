@@ -1,0 +1,37 @@
+{
+  "method": "paired_bootstrap_pr_auc_delta: resample validation-row indices with replacement (identical indices applied to both score vectors per resample), n_resamples draws, 95% CI from the empirical percentiles of the resampled PR-AUC delta",
+  "validation_row_count": 88581,
+  "control_vs_b0": {
+    "metric": "pr_auc",
+    "n_resamples": 10000,
+    "observed_delta": -0.0041984678176139045,
+    "bootstrap_mean_delta": -0.004241060070225988,
+    "bootstrap_std_delta": 0.002636068211404451,
+    "ci_lower_95": -0.00945240161077589,
+    "ci_upper_95": 0.000956635710824437,
+    "excludes_zero": false,
+    "random_seed": 42
+  },
+  "control_vs_b1_card1": {
+    "metric": "pr_auc",
+    "n_resamples": 10000,
+    "observed_delta": -0.010099026031385572,
+    "bootstrap_mean_delta": -0.010129059050157105,
+    "bootstrap_std_delta": 0.0027088165913753516,
+    "ci_lower_95": -0.015446904516806553,
+    "ci_upper_95": -0.004750680171252943,
+    "excludes_zero": true,
+    "random_seed": 42
+  },
+  "control_vs_g1": {
+    "metric": "pr_auc",
+    "n_resamples": 10000,
+    "observed_delta": 0.01851981021044047,
+    "bootstrap_mean_delta": 0.018491575536061452,
+    "bootstrap_std_delta": 0.0031626991316454087,
+    "ci_lower_95": 0.012341035105252649,
+    "ci_upper_95": 0.024682386853303775,
+    "excludes_zero": true,
+    "random_seed": 42
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "model": "neighbourhood_only_encoder_with_head",
+  "evaluation_split": "validation",
+  "n_transactions": 88581,
+  "n_fraud": 3042,
+  "fraud_rate": 0.03434145019812375,
+  "pr_auc": 0.13444113173555508,
+  "roc_auc": 0.7468642994691841,
+  "ranking_metrics": {
+    "top_0.5_pct": {
+      "fraction": 0.005,
+      "k": 443,
+      "frauds_found": 136,
+      "precision": 0.30699774266365687,
+      "recall": 0.044707429322813935
+    },
+    "top_1_pct": {
+      "fraction": 0.01,
+      "k": 886,
+      "frauds_found": 244,
+      "precision": 0.27539503386004516,
+      "recall": 0.08021038790269559
+    },
+    "top_2_pct": {
+      "fraction": 0.02,
+      "k": 1772,
+      "frauds_found": 444,
+      "precision": 0.2505643340857788,
+      "recall": 0.14595660749506903
+    },
+    "top_5_pct": {
+      "fraction": 0.05,
+      "k": 4430,
+      "frauds_found": 870,
+      "precision": 0.1963882618510158,
+      "recall": 0.2859960552268245
+    }
+  },
+  "test_evaluated": false,
+  "run_name": "neighbourhood_only"
+}

@@ -1,0 +1,52 @@
+{
+  "relation_name": "card1",
+  "model_name": "graphsage_card1_embeddings_shuffled_embedding",
+  "control_variant": "shuffled_embedding",
+  "control_isolates": "split-search dilution from 32 extra columns",
+  "control_description": "The frozen G1 embedding block permuted within each split: identical per-split marginals, no row alignment. Measures what adding 32 uninformative columns costs the frozen LightGBM configuration.",
+  "random_seed": 42,
+  "architecture": {
+    "n_hops": 2,
+    "fan_outs": [
+      10,
+      10
+    ],
+    "aggregator": "mean",
+    "hidden_dim": 64,
+    "embedding_dim": 32,
+    "activation": "relu",
+    "normalization": "l2_per_layer",
+    "empty_neighborhood_policy": "masked mean over zero valid neighbours is defined as the zero vector; a node falls back to its own transformed features at that hop rather than receiving an arbitrary or uninitialized value",
+    "input_dim": 435
+  },
+  "training_objective": "none: this block is not trained. It is the frozen G1 embedding block with its rows permuted within each split.",
+  "training_regime": "permutation_null_control",
+  "permutation": {
+    "scope": "within_split",
+    "seed": 42,
+    "unit": "whole 32-column row",
+    "source_embeddings_path": "data/processed/graphsage_card1_embeddings.parquet",
+    "source_embeddings_sha256": "9af883d25595f14e52c25651bef74a411b2ad2fb3f6a0c33cf6771eb4d35db35",
+    "source_encoder_metadata_path": "reports/graphsage/card1/metadata.json",
+    "rows_left_in_original_position": 0,
+    "per_split_marginals_preserved": true,
+    "rationale": "A global permutation would move train-fitted embedding rows into the validation partition and confound random alignment with a distribution shift. Permuting inside each split removes only the row alignment."
+  },
+  "target_labels_used_for_training": false,
+  "target_labels_used_in_node_features": false,
+  "test_labels_used": false,
+  "split_row_counts": {
+    "train": 413378,
+    "validation": 88581,
+    "test": 88581
+  },
+  "embeddings_path": "data/processed/graphsage_card1_embeddings_shuffled_embedding.parquet",
+  "embedding_row_count": 590540,
+  "embedding_has_no_nulls": true,
+  "embedding_has_no_target_column": true,
+  "versions": {
+    "python": "3.14.0",
+    "numpy": "2.5.2",
+    "pandas": "3.0.5"
+  }
+}
