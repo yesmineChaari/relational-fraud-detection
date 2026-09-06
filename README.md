@@ -22,8 +22,10 @@ fraud-relational-ml/
 │     └── B0 (0.64914) vs B1-card_core_addr1 (0.64401) vs B1-card1 (0.65504)
 ├── 6. G1 Graph Neural Network Neighborhood Embeddings
 │     └── GraphSAGE embedding + B0 predictors: PR-AUC = 0.62642, below both baselines
-└── 7. G1 Attribution Controls (dilution, readout, cross-fitting, budget)
-      └── Verdict: most of the regression was an artifact; corrected G1 reaches B0, not B1
+├── 7. G1 Attribution Controls (dilution, readout, cross-fitting, budget)
+│     └── Verdict: most of the regression was an artifact; corrected G1 reaches B0, not B1
+└── 8. Seed Variance Across Training Runs (5 seeds x B0 and B1-card1)
+      └── Gain direction holds; PR-AUC magnitude is confounded by the estimator cap
 ```
 
 ---
@@ -137,6 +139,8 @@ Four feature summaries were generated per relation:
 | **`B1-card1`** | Card 1 Only | 439 | **0.65504** | **0.92807** | **+0.00590** | **#14, #16, #19, #31** |
 | **`B1-card1_card2`** | Card 1 + Card 2 | 439 | **0.65465** | **0.92703** | **+0.00551** | **#15, #16, #18, #31** |
 
+> **The PR-AUC deltas in this table are single-seed measurements and must not be quoted as point estimates.** Refitting B0 and B1-card1 across five seeds moves the paired delta from $-0.00216$ to $+0.01402$. The movement is an early-stopping artifact rather than a property of the relational features, and the underlying gain is stable once that is controlled for, but the specific figure $+0.00590$ is one draw from a wide distribution. See Section 9.
+
 ### Key Scientific Insights
 1. **The Initial B1 Regression was Relational Selection Error**:
    - `card_core_addr1` fragmented the entity space (13.33% zero-fallback rate, 12.1h repeat gap), diluting temporal burst signals.
@@ -145,7 +149,7 @@ Four feature summaries were generated per relation:
    - The association is entirely the zero-count sentinel handed to uncovered rows, which carry a **10.18%** fraud rate against **2.49%** on covered rows. A bare "key is missing" flag scores PR-AUC `0.0609`, *above* the feature itself.
    - This is why `card_core_addr1` is shortlisted but never preferred: the screening requires a relation's history summaries to beat its own key-missingness indicator. See `reports/relational_screening/coverage_confound.csv`.
 3. **High Coverage Restores Strong Positive Signal**:
-   - Switching to `card1` (100% coverage) or `card1_card2` (98.42% coverage) yields a clean **+0.01103 PR-AUC recovery** over `card_core_addr1` and outperforms the tabular B0 baseline by **+0.00590 PR-AUC** (outcome `A` in `reports/b1/b1_cross_relation_summary.json`).
+   - Switching to `card1` (100% coverage) or `card1_card2` (98.42% coverage) yields a clean **+0.01103 PR-AUC recovery** over `card_core_addr1` and outperforms the tabular B0 baseline by **+0.00590 PR-AUC** on the frozen seed (outcome `A` in `reports/b1/b1_cross_relation_summary.json`). The direction of that gain is confirmed across seeds and on ROC-AUC; the magnitude is not — see Section 9.
 4. **Feature Salience**:
    - In `B1-card1`, all 4 relational features rank in the **top 7% by gain** (#14, #16, #19, #31 out of 439 total features).
 
@@ -204,6 +208,8 @@ fraud-relational-ml/
 │       ├── train_lightgbm_g1.py                       # Frozen G1 embedding + LightGBM trainer
 │       ├── train_lightgbm_g1_controls.py              # G1 attribution-control runs
 │       ├── compare_g1_controls.py                     # Control comparison & pre-agreed verdict
+│       ├── train_seed_variants.py                     # Seed-variance runs for B0 and B1-card1
+│       ├── summarize_seed_variance.py                 # Seed spread & early-stopping stratification
 │       └── compare_b1_variants.py                     # Cross-variant comparison generator
 └── tests/
     ├── test_lightgbm_baseline.py                      # B0 unit test suite
@@ -214,7 +220,8 @@ fraud-relational-ml/
     ├── test_temporal_sampler.py                       # Strictly-before sampling correctness
     ├── test_graphsage_encoder.py                      # Encoder & leakage-guard suite
     ├── test_lightgbm_g1.py                            # G1 merge & significance suite
-    └── test_g1_controls.py                            # Attribution-control suite (49 tests)
+    ├── test_g1_controls.py                            # Attribution-control suite (49 tests)
+    └── test_seed_variance.py                          # Seed-variance & stratification suite (39 tests)
 ```
 
 ---
@@ -254,7 +261,11 @@ python -m src.graph.train_graphsage_variants --skip-existing
 python -m src.models.train_lightgbm_g1_controls --skip-existing
 python -m src.models.compare_g1_controls
 
-# 7. Run complete test suite
+# 7. Seed-variance panel, then its report
+python -m src.models.train_seed_variants --skip-existing
+python -m src.models.summarize_seed_variance
+
+# 8. Run complete test suite
 python -m pytest tests/ -v
 ```
 
@@ -262,6 +273,16 @@ Both control runners accept `--skip-existing`, so an interrupted sweep resumes
 rather than recomputing blocks that are already published. The encoder variants
 each take tens of minutes on CPU; the frozen B0, B1 and G1 artifacts are
 hash-verified before and after every control run and are never rewritten.
+
+The seed-variance panel is ten full LightGBM fits at the 6,000-round cap and
+takes roughly four hours on twelve cores, with a peak resident set near 4.5 GB
+per run. Runs are ordered seed-major, so an interruption leaves complete paired
+deltas for the seeds that finished rather than a half-built configuration. To
+run a single cell, pass `--config` and `--seed`:
+
+```bash
+python -m src.models.train_seed_variants --config b0 --seed 202
+```
 
 ---
 
@@ -321,6 +342,43 @@ Its $-0.07556$ therefore confounds removing label leakage with misaligning the f
 
 ---
 
-## 9. Next Phase
+## 9. Seed Variance and the Estimator Cap (`reports/seed_variance/`)
 
-With the G1 stage closed, remaining effort goes to hardening the B1 claim: a permuted-entity null control for the B1 gain, per-feature ablation of the four relational summaries, seed-variance measurement across training runs, and the one-shot final test protocol. The estimator cap remains binding for every LightGBM run in this repository (`best_iteration` at or near the 6,000 ceiling), which is an open issue affecting all reported numbers.
+Every headline figure above came from exactly one training run per configuration, so the only uncertainty ever quantified was sampling variance: the paired bootstrap holds a trained model fixed and resamples validation rows. Run-to-run variance under a different seed was unmeasured. B0 and B1-card1 were therefore refitted across five seeds (42, 202, 707, 1337, 2024) with `random_state` as the only parameter permitted to move; every other setting, the feature manifest and the train-only categorical mappings were read from the frozen artifacts and asserted unchanged before training.
+
+Seed 42 reproduces the frozen B0 (`0.649138574648`) and frozen B1-card1 (`0.655039132862`) to a difference of exactly `0.0`, so the remaining four seeds differ from the published runs by seed and by nothing else.
+
+### The Paired Delta by Seed
+
+| Seed | B0 PR-AUC | B1-card1 PR-AUC | $\Delta$ PR-AUC | $\Delta$ ROC-AUC | B0 iter | B1 iter | Stopped early |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 42 | 0.64913857 | 0.65503913 | $+0.00590$ | $+0.00305$ | 5,821 | 5,999 | neither |
+| 202 | 0.64012433 | 0.65414788 | $+0.01402$ | $+0.00190$ | **3,648** | 5,999 | **B0** |
+| 707 | 0.64480743 | 0.64264537 | $-0.00216$ | $+0.00309$ | 5,926 | **3,644** | **B1** |
+| 1337 | 0.64279500 | 0.64942275 | $+0.00663$ | $+0.00231$ | 5,999 | 5,994 | neither |
+| 2024 | 0.64860778 | 0.64974079 | $+0.00113$ | $+0.00287$ | 5,984 | **4,651** | **B1** |
+
+Across the full panel the paired PR-AUC delta has mean $+0.00511$, standard deviation $0.00615$ and range $[-0.00216, +0.01402]$ — a standard deviation larger than the mean, and a range straddling zero.
+
+### The Instability is an Early-Stopping Artifact
+
+1. **Which model stopped early predicts the delta, in five seeds out of five.**
+   - Both models run to the cap (seeds 42, 1337): delta $+0.00590$ and $+0.00663$ — mean $+0.00626$, standard deviation $0.00051$.
+   - B0 stops early (seed 202): delta inflates to $+0.01402$.
+   - B1 stops early (seeds 707, 2024): delta collapses to $-0.00216$ and $+0.00113$.
+   - Contaminated seeds carry a standard deviation of $0.00855$, **17x** the clean stratum's $0.00051$.
+2. **The mechanism is that early stopping optimises the reported metric.** Patience is evaluated on validation `average_precision` — the same quantity the comparison reports. A model truncated ~2,300 rounds short of its opponent loses that optimisation, so the PR-AUC difference partly scores the stopping point rather than the predictors.
+3. **ROC-AUC, which is not the stopping criterion, is stable and unanimous.** B1-card1 beats B0 on ROC-AUC in **all five seeds**, mean $+0.00264$, standard deviation $0.00052$. This is the cleanest available read of the relational contribution, and it is positive throughout.
+4. **The published bootstrap interval understates the true uncertainty by roughly 3x.** Seed standard deviation on the delta is $0.00615$ against the frozen paired bootstrap's $0.00199$ — a ratio of **3.09**. The bootstrap resamples rows but never refits the model, so it cannot see this source at all.
+
+### Consequences
+
+- **The relational gain is real but its PR-AUC magnitude is not currently quotable.** The direction is supported by every ROC-AUC comparison and by both clean PR-AUC comparisons; the figure $+0.00590$ is not a measurement of it.
+- **The estimator cap is promoted from a caveat to a blocker.** It is not merely that models are cap-bound rather than converged: the cap-and-patience interaction is what the headline delta partly measures. Note also that early stopping *does* fire — in 3 of these 10 runs — so the previously recorded property that it never triggers is a fact about seed 42, not about the configuration.
+- **Any comparison in this repository between two cap-bound LightGBM runs inherits this confound**, including the G1 controls in Section 8.
+
+---
+
+## 10. Next Phase
+
+With the G1 stage closed, remaining effort goes to hardening the B1 claim. The seed-variance result reorders that work: resolving the estimator cap is now a prerequisite rather than a parallel task, because the permuted-entity null and the per-feature ablation both measure PR-AUC deltas between cap-bound runs and would inherit the same artifact. The one-shot final test protocol should not be executed until the delta it would confirm is stable. The corrected cross-fitting control (Section 8) remains outstanding and is independent of this.

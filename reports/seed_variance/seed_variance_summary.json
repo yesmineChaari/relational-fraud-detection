@@ -1,0 +1,233 @@
+{
+  "report_name": "Seed variance across training runs",
+  "question": "How much does validation PR-AUC move when the same frozen configuration is refitted under a different seed, and does the B1-card1 gain over B0 survive that movement?",
+  "varied_parameter": "random_state",
+  "method": "Each configuration is refitted once per seed with every other setting held at its frozen value. The delta is paired by seed, so a seed effect shared by both configurations cancels rather than inflating the spread.",
+  "evaluation_split": "validation",
+  "test_evaluated": false,
+  "panel_complete": true,
+  "configurations": {
+    "b0": {
+      "seeds": [
+        42,
+        202,
+        707,
+        1337,
+        2024
+      ],
+      "estimator_cap": 6000,
+      "early_stopping_triggered_in_any_run": true,
+      "estimator_cap_reached_in_all_runs": false,
+      "best_iteration_min": 3648,
+      "best_iteration_max": 5999,
+      "pr_auc": {
+        "n_seeds": 5,
+        "mean": 0.6450946225814638,
+        "std": 0.0038330901156582477,
+        "min": 0.6401243307263832,
+        "max": 0.6491385746479026,
+        "range": 0.009014243921519394
+      },
+      "roc_auc": {
+        "n_seeds": 5,
+        "mean": 0.9244985683428066,
+        "std": 0.0006203644260868822,
+        "min": 0.9238690305545101,
+        "max": 0.9252834785466324,
+        "range": 0.001414447992122314
+      }
+    },
+    "b1_card1": {
+      "seeds": [
+        42,
+        202,
+        707,
+        1337,
+        2024
+      ],
+      "estimator_cap": 6000,
+      "early_stopping_triggered_in_any_run": true,
+      "estimator_cap_reached_in_all_runs": false,
+      "best_iteration_min": 3644,
+      "best_iteration_max": 5999,
+      "pr_auc": {
+        "n_seeds": 5,
+        "mean": 0.6501991827364012,
+        "std": 0.0049216452847578186,
+        "min": 0.6426453686404109,
+        "max": 0.6550391328616743,
+        "range": 0.01239376422126337
+      },
+      "roc_auc": {
+        "n_seeds": 5,
+        "mean": 0.9271432082773199,
+        "std": 0.0006499054524987198,
+        "min": 0.926360125830543,
+        "max": 0.9280732137984835,
+        "range": 0.001713087967940563
+      }
+    }
+  },
+  "paired_delta_definition": "b1_card1 minus b0, same seed",
+  "paired_delta_per_seed": [
+    {
+      "seed": 42,
+      "b0_pr_auc": 0.6491385746479026,
+      "b1_card1_pr_auc": 0.6550391328616743,
+      "delta_pr_auc": 0.005900558213771667,
+      "b0_roc_auc": 0.925020356086887,
+      "b1_card1_roc_auc": 0.9280732137984835,
+      "delta_roc_auc": 0.0030528577115964683,
+      "b0_best_iteration": 5821,
+      "b1_card1_best_iteration": 5999,
+      "early_stopping_status": "neither"
+    },
+    {
+      "seed": 202,
+      "b0_pr_auc": 0.6401243307263832,
+      "b1_card1_pr_auc": 0.6541478750734566,
+      "delta_pr_auc": 0.014023544347073424,
+      "b0_roc_auc": 0.9252834785466324,
+      "b1_card1_roc_auc": 0.9271781931459433,
+      "delta_roc_auc": 0.0018947145993108983,
+      "b0_best_iteration": 3648,
+      "b1_card1_best_iteration": 5999,
+      "early_stopping_status": "b0"
+    },
+    {
+      "seed": 707,
+      "b0_pr_auc": 0.6448074292639031,
+      "b1_card1_pr_auc": 0.6426453686404109,
+      "delta_pr_auc": -0.0021620606234922235,
+      "b0_roc_auc": 0.9242728395786786,
+      "b1_card1_roc_auc": 0.9273633899755858,
+      "delta_roc_auc": 0.003090550396907199,
+      "b0_best_iteration": 5926,
+      "b1_card1_best_iteration": 3644,
+      "early_stopping_status": "b1_card1"
+    },
+    {
+      "seed": 1337,
+      "b0_pr_auc": 0.6427950031831541,
+      "b1_card1_pr_auc": 0.6494227514093047,
+      "delta_pr_auc": 0.006627748226150643,
+      "b0_roc_auc": 0.9240471369473255,
+      "b1_card1_roc_auc": 0.926360125830543,
+      "delta_roc_auc": 0.002312988883217404,
+      "b0_best_iteration": 5999,
+      "b1_card1_best_iteration": 5994,
+      "early_stopping_status": "neither"
+    },
+    {
+      "seed": 2024,
+      "b0_pr_auc": 0.6486077750859758,
+      "b1_card1_pr_auc": 0.6497407856971592,
+      "delta_pr_auc": 0.001133010611183427,
+      "b0_roc_auc": 0.9238690305545101,
+      "b1_card1_roc_auc": 0.9267411186360439,
+      "delta_roc_auc": 0.00287208808153383,
+      "b0_best_iteration": 5984,
+      "b1_card1_best_iteration": 4651,
+      "early_stopping_status": "b1_card1"
+    }
+  ],
+  "paired_delta_pr_auc_spread": {
+    "n_seeds": 5,
+    "mean": 0.005104560154937388,
+    "std": 0.006145709420919689,
+    "min": -0.0021620606234922235,
+    "max": 0.014023544347073424,
+    "range": 0.016185604970565648
+  },
+  "paired_delta_roc_auc_spread": {
+    "n_seeds": 5,
+    "mean": 0.00264463993451316,
+    "std": 0.000521917374156639,
+    "min": 0.0018947145993108983,
+    "max": 0.003090550396907199,
+    "range": 0.0011958357975963008
+  },
+  "frozen_paired_bootstrap": {
+    "metric": "pr_auc",
+    "n_resamples": 10000,
+    "observed_delta": 0.005900558213771667,
+    "bootstrap_mean_delta": 0.0058879989799311165,
+    "bootstrap_std_delta": 0.001987241287356355,
+    "ci_lower_95": 0.0019923064590710526,
+    "ci_upper_95": 0.009763494275780703,
+    "excludes_zero": true,
+    "random_seed": 42,
+    "available": true,
+    "comparison": "frozen B1-card1 minus frozen B0",
+    "holds_fixed": "the two trained models; resamples validation rows"
+  },
+  "early_stopping_stratification": {
+    "rationale": "Early stopping maximises validation average precision, the reported metric. When one configuration stops early and the other runs to the cap, the PR-AUC difference between them partly scores the stopping point rather than the predictors.",
+    "n_clean": 2,
+    "n_contaminated": 3,
+    "clean_seeds": [
+      42,
+      1337
+    ],
+    "contaminated_seeds": [
+      202,
+      707,
+      2024
+    ],
+    "which_stopped_per_seed": {
+      "42": "neither",
+      "202": "b0",
+      "707": "b1_card1",
+      "1337": "neither",
+      "2024": "b1_card1"
+    },
+    "clean_delta_pr_auc": {
+      "n_seeds": 2,
+      "mean": 0.006264153219961155,
+      "std": 0.000514200988964303,
+      "min": 0.005900558213771667,
+      "max": 0.006627748226150643,
+      "range": 0.0007271900123789754
+    },
+    "clean_delta_sign_stable": true,
+    "contaminated_delta_pr_auc": {
+      "n_seeds": 3,
+      "mean": 0.00433149811158821,
+      "std": 0.008553723971667784,
+      "min": -0.0021620606234922235,
+      "max": 0.014023544347073424,
+      "range": 0.016185604970565648
+    },
+    "roc_auc_delta_all_seeds": {
+      "n_seeds": 5,
+      "mean": 0.00264463993451316,
+      "std": 0.000521917374156639,
+      "min": 0.0018947145993108983,
+      "max": 0.003090550396907199,
+      "range": 0.0011958357975963008
+    },
+    "roc_auc_delta_sign_stable": true,
+    "roc_auc_is_not_the_stopping_metric": true
+  },
+  "interpretation": {
+    "paired_delta_sign_stable_across_seeds": false,
+    "paired_delta_positive_in_every_seed": false,
+    "seed_std_of_paired_delta": 0.006145709420919689,
+    "mean_paired_delta": 0.005104560154937388,
+    "mean_delta_over_seed_std": 0.830589246143288,
+    "bootstrap_std_of_delta": 0.001987241287356355,
+    "seed_std_over_bootstrap_std": 3.0925834019357463,
+    "sources_comparable_in_size": false,
+    "seed_variance_dominates_sampling_variance": true,
+    "early_stopping_confound_explains_instability": true,
+    "roc_auc_delta_sign_stable_across_seeds": true,
+    "verdict": "confounded_by_early_stopping",
+    "plain_language": "The paired delta changes sign across the full panel, but the instability is an early-stopping artifact rather than a property of the relational features. On the 2 seeds where both configurations ran to the estimator cap, the delta is +0.00626 with a standard deviation of 0.00051. On the seeds where one configuration stopped early, the delta swings to whichever model kept training, because early stopping selects the round that maximises the very metric being reported. ROC-AUC, which is not the stopping criterion, favours B1-card1 in every seed by +0.00264 with a standard deviation of 0.00052. The relational gain is real; the PR-AUC point estimate is contaminated by the stopping rule and cannot be quoted until the cap is resolved. Seed variance on the delta (0.00615) exceeds the paired-bootstrap standard deviation (0.00199), so the published bootstrap interval understates the true uncertainty: it resamples rows but never refits the model."
+  },
+  "runs_table_path": "reports/seed_variance/seed_variance_runs.csv",
+  "versions": {
+    "numpy": "2.3.5",
+    "pandas": "2.3.3"
+  },
+  "generated_at_utc": "2026-09-06T22:10:40.007588+00:00"
+}

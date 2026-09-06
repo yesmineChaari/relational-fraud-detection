@@ -1,0 +1,54 @@
+{
+  "model": "seed_variant_b1_card1",
+  "evaluation_split": "validation",
+  "n_transactions": 88581,
+  "n_fraud": 3042,
+  "fraud_rate": 0.03434145019812375,
+  "pr_auc": 0.6497407856971592,
+  "roc_auc": 0.9267411186360439,
+  "ranking_metrics": {
+    "top_0.5_pct": {
+      "fraction": 0.005,
+      "k": 443,
+      "frauds_found": 425,
+      "precision": 0.9593679458239278,
+      "recall": 0.13971071663379356
+    },
+    "top_1_pct": {
+      "fraction": 0.01,
+      "k": 886,
+      "frauds_found": 843,
+      "precision": 0.9514672686230248,
+      "recall": 0.27712031558185407
+    },
+    "top_2_pct": {
+      "fraction": 0.02,
+      "k": 1772,
+      "frauds_found": 1443,
+      "precision": 0.8143340857787811,
+      "recall": 0.47435897435897434
+    },
+    "top_5_pct": {
+      "fraction": 0.05,
+      "k": 4430,
+      "frauds_found": 2072,
+      "precision": 0.46772009029345374,
+      "recall": 0.6811308349769888
+    }
+  },
+  "test_evaluated": false,
+  "configuration": "b1_card1",
+  "random_seed": 2024,
+  "weighting": "weighted",
+  "scale_pos_weight": 27.434310083918007,
+  "maximum_estimators": 6000,
+  "actual_stopping_iteration": 4851,
+  "best_iteration": 4651,
+  "best_validation_average_precision": 0.6497407856971591,
+  "early_stopping_rounds": 200,
+  "early_stopping_triggered": true,
+  "estimator_cap_reached": false,
+  "frozen_run_reproduction": {
+    "applicable": false
+  }
+}
