@@ -1,0 +1,83 @@
+{
+  "report_name": "Estimator-cap convergence check",
+  "question": "Where do B0, B1-card1 and G1-card1 actually converge past the frozen 6,000-estimator cap, and do the B1 gain and the G1 deficit survive convergence?",
+  "extended_maximum_estimators": 15000,
+  "early_stopping_rounds_unchanged_at": 200,
+  "seed": 42,
+  "convergence_points": {
+    "b0": {
+      "extended_maximum_estimators": 15000,
+      "extended_best_iteration": 6011,
+      "extended_early_stopping_triggered": true,
+      "extended_pr_auc": 0.649193708652322,
+      "extended_roc_auc": 0.9246941076025785,
+      "frozen_maximum_estimators": 6000,
+      "frozen_best_iteration": 5821,
+      "frozen_pr_auc": 0.6491385746479026,
+      "frozen_roc_auc": 0.925020356086887,
+      "best_iteration_gap": 190
+    },
+    "b1_card1": {
+      "extended_maximum_estimators": 15000,
+      "extended_best_iteration": 6087,
+      "extended_early_stopping_triggered": true,
+      "extended_pr_auc": 0.6554977637099318,
+      "extended_roc_auc": 0.9280936050493256,
+      "frozen_maximum_estimators": 6000,
+      "frozen_best_iteration": 5999,
+      "frozen_pr_auc": 0.6550391328616743,
+      "frozen_roc_auc": 0.9280732137984835,
+      "best_iteration_gap": 88
+    },
+    "g1_card1": {
+      "extended_maximum_estimators": 15000,
+      "extended_best_iteration": 7147,
+      "extended_early_stopping_triggered": true,
+      "extended_pr_auc": 0.6282682353995636,
+      "extended_roc_auc": 0.914080672907281,
+      "frozen_maximum_estimators": 6000,
+      "frozen_best_iteration": 5965,
+      "frozen_pr_auc": 0.6264202966198482,
+      "frozen_roc_auc": 0.9138577334326102,
+      "best_iteration_gap": 1182
+    }
+  },
+  "b1_gain_capped_vs_converged": {
+    "reference": "b0",
+    "candidate": "b1_card1",
+    "capped_delta_pr_auc": 0.005900558213771667,
+    "converged_delta_pr_auc": 0.006304055057609892,
+    "delta_shift": 0.0004034968438382247
+  },
+  "g1_deficit_capped_vs_converged": {
+    "reference": "b0",
+    "candidate": "g1_card1",
+    "capped_delta_pr_auc": -0.022718278028054373,
+    "converged_delta_pr_auc": -0.020925473252758398,
+    "delta_shift": 0.0017928047752959753
+  },
+  "decoupled_stopping_metric_effect": {
+    "capped_ap_patience_delta_pr_auc": 0.005900558213771667,
+    "extended_auc_patience_delta_pr_auc": 0.008068336591066871,
+    "b0_extended_auc_patience_early_stopping_triggered": true,
+    "b1_card1_extended_auc_patience_early_stopping_triggered": true,
+    "b0_extended_auc_patience_best_iteration": 1121,
+    "b1_card1_extended_auc_patience_best_iteration": 1318,
+    "extended_ap_patience_delta_pr_auc": 0.006304055057609892
+  },
+  "decision": {
+    "decidable": true,
+    "verdict": "headline_numbers_require_revision",
+    "rule": "If any required configuration fails to trigger early stopping before the extended cap: cap still binding. Else if every converged-vs-capped PR-AUC delta shift is within 2x the seed-variance panel's clean-stratum noise floor: converged conclusions survive. Else: headline numbers require revision.",
+    "noise_floor_source": "reports/seed_variance/seed_variance_summary.json",
+    "noise_floor_clean_delta_pr_auc_std": 0.000514200988964303,
+    "all_required_configs_converged": true,
+    "reasoning": "Every configuration now stops early before the extended cap, but at least one converged delta moves by more than 2x the clean-stratum seed noise floor (0.00051) relative to its capped value. The capped headline numbers do not survive convergence and must be revised to the converged figures.",
+    "plain_language": "Every configuration now stops early before the extended cap, but at least one converged delta moves by more than 2x the clean-stratum seed noise floor (0.00051) relative to its capped value. The capped headline numbers do not survive convergence and must be revised to the converged figures."
+  },
+  "versions": {
+    "numpy": "2.3.5",
+    "pandas": "2.3.3"
+  },
+  "generated_at_utc": "2026-09-07T01:54:53.006510+00:00"
+}

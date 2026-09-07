@@ -210,6 +210,8 @@ fraud-relational-ml/
 │       ├── compare_g1_controls.py                     # Control comparison & pre-agreed verdict
 │       ├── train_seed_variants.py                     # Seed-variance runs for B0 and B1-card1
 │       ├── summarize_seed_variance.py                 # Seed spread & early-stopping stratification
+│       ├── train_lightgbm_convergence_check.py        # Extended-cap convergence runs for B0/B1-card1/G1-card1
+│       ├── summarize_convergence_check.py             # Capped-vs-converged deltas & the cap decision
 │       └── compare_b1_variants.py                     # Cross-variant comparison generator
 └── tests/
     ├── test_lightgbm_baseline.py                      # B0 unit test suite
@@ -221,7 +223,8 @@ fraud-relational-ml/
     ├── test_graphsage_encoder.py                      # Encoder & leakage-guard suite
     ├── test_lightgbm_g1.py                            # G1 merge & significance suite
     ├── test_g1_controls.py                            # Attribution-control suite (49 tests)
-    └── test_seed_variance.py                          # Seed-variance & stratification suite (39 tests)
+    ├── test_seed_variance.py                          # Seed-variance & stratification suite (39 tests)
+    └── test_convergence_check.py                      # Convergence-check & cap-decision suite (25 tests)
 ```
 
 ---
@@ -265,7 +268,12 @@ python -m src.models.compare_g1_controls
 python -m src.models.train_seed_variants --skip-existing
 python -m src.models.summarize_seed_variance
 
-# 8. Run complete test suite
+# 8. Estimator-cap convergence check, then its report
+python -m src.models.train_lightgbm_convergence_check --skip-existing
+python -m src.models.train_lightgbm_convergence_check --config b0 --config b1_card1 --stop-metric auc --skip-existing
+python -m src.models.summarize_convergence_check
+
+# 9. Run complete test suite
 python -m pytest tests/ -v
 ```
 
@@ -282,6 +290,18 @@ run a single cell, pass `--config` and `--seed`:
 
 ```bash
 python -m src.models.train_seed_variants --config b0 --seed 202
+```
+
+The convergence check is three full LightGBM fits at 15,000 rounds (2.5x the
+frozen cap) for the required `average_precision`-patience run, plus two more
+at the same cap with patience reordered onto `auc` for B0 and B1-card1. Peak
+resident set is comparable to the seed-variance panel's per-run figure; close
+other memory-heavy applications before running, and run one process at a
+time. `--skip-existing` resumes an interrupted job without recomputing a
+completed `(config, stop_metric, seed)` cell:
+
+```bash
+python -m src.models.train_lightgbm_convergence_check --config g1_card1 --stop-metric average_precision
 ```
 
 ---
@@ -377,8 +397,28 @@ Across the full panel the paired PR-AUC delta has mean $+0.00511$, standard devi
 - **The estimator cap is promoted from a caveat to a blocker.** It is not merely that models are cap-bound rather than converged: the cap-and-patience interaction is what the headline delta partly measures. Note also that early stopping *does* fire — in 3 of these 10 runs — so the previously recorded property that it never triggers is a fact about seed 42, not about the configuration.
 - **Any comparison in this repository between two cap-bound LightGBM runs inherits this confound**, including the G1 controls in Section 8.
 
+### Convergence Check at an Extended Cap (`reports/convergence_check/`)
+
+B0, B1-card1 and G1-card1 were each refit once, at seed 42, with the estimator cap raised from 6,000 to 15,000 and the 200-round patience left unchanged; the frozen artifacts were hash-pinned before and after and are untouched. All three now genuinely trigger early stopping — the cap was binding for every run this repository had published:
+
+| Configuration | Frozen best iteration (cap 6,000) | Converged best iteration (cap 15,000) | Gap |
+| :--- | :--- | :--- | :--- |
+| B0 | 5,821 | 6,011 | +190 |
+| B1-card1 | 5,999 | 6,087 | +88 |
+| G1-card1 | 5,965 | 7,147 | **+1,182** |
+
+G1-card1's gap is more than 6x either LightGBM configuration's, confirming the suspicion raised when the graph stage closed: 32 additional dense columns needed materially more rounds to converge, and the frozen 6,000-cap comparison caught it mid-fit.
+
+**The B1 gain survives.** Capped delta $+0.00590$ moves to a converged delta of $+0.00630$ (shift $+0.00040$), within twice the seed-variance panel's clean-stratum noise floor ($0.00051$). The direction and approximate magnitude reported throughout this document hold once the cap is no longer a factor.
+
+**The G1 deficit does not.** Capped delta $-0.02272$ moves to a converged delta of $-0.02093$ (shift $+0.00179$) — more than three-and-a-half times the noise floor. The gap between G1-card1 and B0 was measurably inflated by G1 having ~1,200 more rounds' worth of fitting left on the table than B0 did. The converged figure, $-0.0209$, supersedes the capped $-0.0227$ wherever this document quotes the G1 result.
+
+**Decoupling the stopping metric from the reported one was tested and does not work as a fix.** Reordering `eval_metric` so patience watches ROC-AUC instead of `average_precision` was run for B0 and B1-card1 at the same 15,000 cap. Both stopped far earlier than under `average_precision` patience — B0 at iteration 1,121, B1-card1 at 1,318 — because ROC-AUC plateaus on this problem thousands of rounds before PR-AUC does. Read at those rounds, PR-AUC is far below either model's converged value (B0: $0.6013$ vs. $0.6492$ converged; B1-card1: $0.6094$ vs. $0.6555$ converged). The resulting delta ($+0.00807$) is coincidentally still positive and of similar order, but neither model is meaningfully fit at the round it was read from, so this is not a comparison worth trusting. The mechanism this document originally worried about — patience watching the reported metric — turns out not to be the actual defect; the defect was simply that 6,000 rounds was not enough, and average_precision patience correctly detects genuine convergence once the cap is high enough to let it.
+
+**Decision: the capped headline numbers require revision, not just a documented caveat.** Every configuration converges before 15,000 rounds under the original stopping rule, so the cap is not permanently unresolvable — but the specific 6,000-round cap materially understated the G1 deficit. Going forward, any new B0/B1/G1-family training should use a cap of at least 15,000 with patience unchanged on `average_precision`; decoupling the stopping metric is rejected based on the evidence above. The frozen B0, B1-card1 and G1-card1 artifacts remain frozen per this investigation's constraint — refreezing them at a higher cap is a separate, deliberately agreed action, not a side effect of this check.
+
 ---
 
 ## 10. Next Phase
 
-With the G1 stage closed, remaining effort goes to hardening the B1 claim. The seed-variance result reorders that work: resolving the estimator cap is now a prerequisite rather than a parallel task, because the permuted-entity null and the per-feature ablation both measure PR-AUC deltas between cap-bound runs and would inherit the same artifact. The one-shot final test protocol should not be executed until the delta it would confirm is stable. The corrected cross-fitting control (Section 8) remains outstanding and is independent of this.
+The estimator cap is resolved as a measurement question: B0, B1-card1 and G1-card1 all converge before 15,000 rounds under the existing stopping rule, and the converged numbers are published above. The B1 gain ($+0.0063$) is confirmed; the G1 deficit is revised from $-0.0227$ to $-0.0209$. Remaining effort goes to hardening the B1 claim: the permuted-entity null and the per-feature ablation can proceed, but must be run at the higher cap (15,000, `average_precision` patience) established here rather than at the frozen 6,000-round configuration, since a comparison at the old cap would reintroduce the same convergence gap this check just quantified. The one-shot final test protocol should wait until that ablation work is done under the corrected cap. The corrected cross-fitting control (Section 8) remains outstanding and is independent of this.
