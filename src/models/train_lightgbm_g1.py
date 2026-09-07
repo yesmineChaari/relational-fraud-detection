@@ -24,7 +24,6 @@ import numpy as np
 import pandas as pd
 import sklearn
 from pandas.api.types import is_float_dtype, is_numeric_dtype
-from sklearn.metrics import average_precision_score
 
 from src.graph.train_graphsage_encoder import (
     EMBEDDING_DIM,
@@ -66,6 +65,10 @@ from src.models.train_lightgbm_relational import (
     snapshot_protected_artifacts,
     validate_frozen_lightgbm_configuration,
     validate_model_columns_against_frozen_b0,
+)
+from src.models.significance import (
+    load_validation_predictions,
+    paired_bootstrap_pr_auc_delta,
 )
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -290,78 +293,6 @@ def embedding_gain_ranks(feature_importance: pd.DataFrame, feat_names: list[str]
         "worst_embedding_gain_rank": int(max(gain_ranks)),
         "median_embedding_gain_rank": float(np.median(gain_ranks)),
     }
-
-
-def _fast_average_precision(y_true: np.ndarray, scores: np.ndarray) -> float:
-    """Binary average precision, numerically identical to sklearn's but without
-    sklearn's generic multiclass dispatch overhead -- needed because the paired
-    bootstrap below calls this thousands of times over 88,581-row resamples."""
-    order = np.argsort(-scores)
-    y_sorted = y_true[order]
-    tp_cumsum = np.cumsum(y_sorted)
-    total_positives = tp_cumsum[-1]
-    ranks = np.arange(1, len(y_true) + 1)
-    precision_at_rank = tp_cumsum / ranks
-    return float(np.sum(precision_at_rank * y_sorted) / total_positives)
-
-
-def paired_bootstrap_pr_auc_delta(
-    y_true: np.ndarray,
-    candidate_scores: np.ndarray,
-    reference_scores: np.ndarray,
-    n_resamples: int = SIGNIFICANCE_RESAMPLES,
-    seed: int = RANDOM_SEED,
-) -> dict[str, Any]:
-    """95% CI on PR-AUC(candidate) - PR-AUC(reference) over paired bootstrap resamples.
-
-    Resamples row indices with replacement (same indices applied to both score
-    vectors, so the comparison is paired rather than two independent bootstraps).
-    Matches the project's documented statistical-validation methodology: a
-    paired bootstrap over the validation set, reusing already-trained predictions.
-    """
-    n = len(y_true)
-    if len(candidate_scores) != n or len(reference_scores) != n:
-        raise ValueError("y_true, candidate_scores and reference_scores must have equal length.")
-    if n_resamples <= 0:
-        raise ValueError("n_resamples must be positive.")
-
-    observed_delta = float(
-        average_precision_score(y_true, candidate_scores)
-        - average_precision_score(y_true, reference_scores)
-    )
-
-    y_true_float = y_true.astype(np.float64, copy=False)
-    rng = np.random.default_rng(seed)
-    deltas = np.empty(n_resamples, dtype=np.float64)
-    for i in range(n_resamples):
-        idx = rng.integers(0, n, size=n)
-        resampled_labels = y_true_float[idx]
-        while resampled_labels.sum() == 0 or resampled_labels.sum() == n:
-            idx = rng.integers(0, n, size=n)
-            resampled_labels = y_true_float[idx]
-        candidate_pr_auc = _fast_average_precision(resampled_labels, candidate_scores[idx])
-        reference_pr_auc = _fast_average_precision(resampled_labels, reference_scores[idx])
-        deltas[i] = candidate_pr_auc - reference_pr_auc
-
-    ci_lower, ci_upper = (float(v) for v in np.percentile(deltas, [2.5, 97.5]))
-    return {
-        "metric": "pr_auc",
-        "n_resamples": int(n_resamples),
-        "observed_delta": observed_delta,
-        "bootstrap_mean_delta": float(deltas.mean()),
-        "bootstrap_std_delta": float(deltas.std()),
-        "ci_lower_95": ci_lower,
-        "ci_upper_95": ci_upper,
-        "excludes_zero": bool(ci_lower > 0.0 or ci_upper < 0.0),
-        "random_seed": int(seed),
-    }
-
-
-def load_validation_predictions(path: Path, prediction_column: str) -> pd.DataFrame:
-    df = pd.read_parquet(path, columns=["TransactionID", "isFraud", "prediction"])
-    if len(df) != EXPECTED_SPLIT_COUNTS["validation"]:
-        raise ValueError(f"Expected {EXPECTED_SPLIT_COUNTS['validation']:,} validation rows in {path}.")
-    return df.rename(columns={"prediction": prediction_column})
 
 
 def compute_significance(

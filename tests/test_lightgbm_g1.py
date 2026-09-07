@@ -17,7 +17,6 @@ from src.models.train_lightgbm_g1 import (
     load_embedding_metadata,
     load_frozen_b0_metadata,
     load_frozen_b1_card1_metadata,
-    paired_bootstrap_pr_auc_delta,
     validate_embedding_feature_dtypes,
     validate_embedding_merge,
 )
@@ -144,42 +143,6 @@ class EmbeddingGainRankTests(unittest.TestCase):
         )
         with self.assertRaises(AssertionError):
             embedding_gain_ranks(feature_importance, ["embedding_00"])
-
-
-class PairedBootstrapTests(unittest.TestCase):
-    def test_identical_scores_give_a_zero_delta_confidence_interval(self) -> None:
-        rng = np.random.default_rng(1)
-        n = 500
-        y_true = (rng.random(n) < 0.1).astype(np.int8)
-        scores = rng.random(n)
-
-        result = paired_bootstrap_pr_auc_delta(y_true, scores, scores, n_resamples=200, seed=0)
-
-        self.assertEqual(result["observed_delta"], 0.0)
-        self.assertAlmostEqual(result["ci_lower_95"], 0.0, places=6)
-        self.assertAlmostEqual(result["ci_upper_95"], 0.0, places=6)
-        self.assertFalse(result["excludes_zero"])
-
-    def test_a_clearly_better_candidate_excludes_zero(self) -> None:
-        rng = np.random.default_rng(2)
-        n = 2_000
-        y_true = (rng.random(n) < 0.1).astype(np.int8)
-        # Candidate scores are strongly correlated with the label; reference is pure noise.
-        candidate_scores = y_true.astype(np.float64) + rng.random(n) * 0.1
-        reference_scores = rng.random(n)
-
-        result = paired_bootstrap_pr_auc_delta(
-            y_true, candidate_scores, reference_scores, n_resamples=200, seed=0
-        )
-
-        self.assertGreater(result["observed_delta"], 0.0)
-        self.assertTrue(result["excludes_zero"])
-        self.assertGreater(result["ci_lower_95"], 0.0)
-
-    def test_mismatched_lengths_raise(self) -> None:
-        y_true = np.array([0, 1, 0], dtype=np.int8)
-        with self.assertRaises(ValueError):
-            paired_bootstrap_pr_auc_delta(y_true, np.array([0.1, 0.2]), np.array([0.1, 0.2, 0.3]))
 
 
 class ComparisonTableTests(unittest.TestCase):

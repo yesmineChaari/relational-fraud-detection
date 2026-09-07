@@ -10,6 +10,12 @@ Every reference value is read from the frozen metric artifacts, so the deltas
 and the outcome classification can never drift away from the models they
 describe.
 
+The two "new" variants' deltas against B0, plus the B1-card1 vs
+B1-card1_card2 head-to-head, carry a 95% CI from the paired bootstrap in
+reports/b1/b1_significance.json (src/models/compare_b1_significance.py). A
+bare delta is never reported without the interval that says whether it is
+distinguishable from noise.
+
 Outputs:
   reports/b1/b1_cross_relation_comparison.csv
   reports/b1/b1_cross_relation_summary.json
@@ -23,6 +29,8 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+
+from src.models.train_lightgbm_baseline import repository_relative
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
@@ -64,8 +72,26 @@ VARIANTS = [
 REPORT_DIR = ROOT_DIR / "reports" / "b1"
 COMPARISON_CSV = REPORT_DIR / "b1_cross_relation_comparison.csv"
 SUMMARY_JSON = REPORT_DIR / "b1_cross_relation_summary.json"
+SIGNIFICANCE_JSON = REPORT_DIR / "b1_significance.json"
 
 RANKING_KEYS = ["top_0.5_pct", "top_1_pct", "top_2_pct", "top_5_pct"]
+
+# Maps a variant's `relation` to the significance-comparison key that reports
+# its interval against B0, so a delta is never printed without one.
+SIGNIFICANCE_VS_B0_KEY = {
+    "card1": "b1_card1_vs_b0",
+    "card1_card2": "b1_card1_card2_vs_b0",
+}
+HEAD_TO_HEAD_KEY = "b1_card1_vs_b1_card1_card2"
+
+
+def load_significance(path: Path = SIGNIFICANCE_JSON) -> dict[str, Any]:
+    if not path.exists():
+        raise FileNotFoundError(
+            f"{path} not found. Run: python -m src.models.compare_b1_significance"
+        )
+    with path.open(encoding="utf-8") as f:
+        return json.load(f)
 
 
 def load_metrics(path: Path) -> dict[str, Any]:
@@ -114,6 +140,7 @@ def build_comparison_row(
     rank_info: dict[str, Any],
     b0_pr_auc: float,
     b0_roc_auc: float,
+    significance: dict[str, Any],
 ) -> dict[str, Any]:
     pr_auc = float(metrics.get("pr_auc", float("nan")))
     roc_auc = float(metrics.get("roc_auc", float("nan")))
@@ -130,6 +157,11 @@ def build_comparison_row(
         "early_stopping_triggered": metrics.get("early_stopping_triggered"),
         "test_evaluated": metrics.get("test_evaluated", False),
     }
+    significance_key = SIGNIFICANCE_VS_B0_KEY.get(relation)
+    comparison = significance["comparisons"].get(significance_key) if significance_key else None
+    row["delta_pr_auc_vs_b0_ci_lower_95"] = comparison["ci_lower_95"] if comparison else None
+    row["delta_pr_auc_vs_b0_ci_upper_95"] = comparison["ci_upper_95"] if comparison else None
+    row["delta_pr_auc_vs_b0_excludes_zero"] = comparison["excludes_zero"] if comparison else None
     for key in RANKING_KEYS:
         ranking = (metrics.get("ranking_metrics") or {}).get(key, {})
         row[f"precision_{key}"] = ranking.get("precision")
@@ -224,6 +256,8 @@ def main() -> None:
 
     print(f"  B0 reference: PR-AUC={b0_pr_auc:.12f}  ROC-AUC={b0_roc_auc:.12f}")
 
+    significance = load_significance()
+
     comparison_rows = []
     for spec, metrics in loaded:
         rank_info = relational_feature_ranks(spec["feat_imp_path"], spec["relation"])
@@ -235,12 +269,20 @@ def main() -> None:
             rank_info,
             b0_pr_auc,
             b0_roc_auc,
+            significance,
         )
         comparison_rows.append(row)
+        ci_note = ""
+        if row["delta_pr_auc_vs_b0_ci_lower_95"] is not None:
+            ci_note = (
+                f"  95% CI=[{row['delta_pr_auc_vs_b0_ci_lower_95']:+.5f}, "
+                f"{row['delta_pr_auc_vs_b0_ci_upper_95']:+.5f}]  "
+                f"excludes_zero={row['delta_pr_auc_vs_b0_excludes_zero']}"
+            )
         print(
             f"  {spec['variant']}: PR-AUC={row['validation_pr_auc']:.5f}  "
             f"ROC-AUC={row['validation_roc_auc']:.5f}  "
-            f"Delta-PR={row['delta_pr_auc_vs_b0']:+.5f}"
+            f"Delta-PR={row['delta_pr_auc_vs_b0']:+.5f}{ci_note}"
         )
 
     baseline_row = next(r for r in comparison_rows if r["role"] == "baseline")
@@ -266,6 +308,10 @@ def main() -> None:
         "final_test_evaluated": False,
         "outcome": outcome,
         "variants": comparison_rows,
+        "b1_card1_vs_b1_card1_card2_significance": significance["comparisons"].get(
+            HEAD_TO_HEAD_KEY
+        ),
+        "significance_source": repository_relative(SIGNIFICANCE_JSON),
     }
     with SUMMARY_JSON.open("w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)

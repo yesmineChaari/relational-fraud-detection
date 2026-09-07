@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-09-02T18:55:15.525575+00:00",
+  "generated_at_utc": "2026-09-07T09:40:34.592662+00:00",
   "candidate_selection_used_validation": false,
   "validation_used_for_reporting": true,
   "final_test_evaluated": false,
@@ -26,6 +26,9 @@
       "best_iteration": 5821,
       "early_stopping_triggered": false,
       "test_evaluated": false,
+      "delta_pr_auc_vs_b0_ci_lower_95": null,
+      "delta_pr_auc_vs_b0_ci_upper_95": null,
+      "delta_pr_auc_vs_b0_excludes_zero": null,
       "precision_top_0.5_pct": 0.9593679458239278,
       "recall_top_0.5_pct": 0.13971071663379356,
       "precision_top_1_pct": 0.9469525959367946,
@@ -49,6 +52,9 @@
       "best_iteration": 5973,
       "early_stopping_triggered": false,
       "test_evaluated": false,
+      "delta_pr_auc_vs_b0_ci_lower_95": null,
+      "delta_pr_auc_vs_b0_ci_upper_95": null,
+      "delta_pr_auc_vs_b0_excludes_zero": null,
       "precision_top_0.5_pct": 0.9616252821670429,
       "recall_top_0.5_pct": 0.14003944773175542,
       "precision_top_1_pct": 0.9469525959367946,
@@ -72,6 +78,9 @@
       "best_iteration": 5999,
       "early_stopping_triggered": false,
       "test_evaluated": false,
+      "delta_pr_auc_vs_b0_ci_lower_95": 0.0019923064590710526,
+      "delta_pr_auc_vs_b0_ci_upper_95": 0.009763494275780703,
+      "delta_pr_auc_vs_b0_excludes_zero": true,
       "precision_top_0.5_pct": 0.9683972911963883,
       "recall_top_0.5_pct": 0.14102564102564102,
       "precision_top_1_pct": 0.9480812641083521,
@@ -95,6 +104,9 @@
       "best_iteration": 6000,
       "early_stopping_triggered": false,
       "test_evaluated": false,
+      "delta_pr_auc_vs_b0_ci_lower_95": 0.0016137968950045935,
+      "delta_pr_auc_vs_b0_ci_upper_95": 0.0093553770961777,
+      "delta_pr_auc_vs_b0_excludes_zero": true,
       "precision_top_0.5_pct": 0.9661399548532731,
       "recall_top_0.5_pct": 0.14069690992767916,
       "precision_top_1_pct": 0.9503386004514672,
@@ -107,5 +119,20 @@
       "relational_split_ranks": "[7, 8, 6, 11]",
       "total_features_in_model": 439
     }
-  ]
+  ],
+  "b1_card1_vs_b1_card1_card2_significance": {
+    "metric": "pr_auc",
+    "n_resamples": 10000,
+    "observed_delta": 0.0003889526795474163,
+    "bootstrap_mean_delta": 0.0004244660769263632,
+    "bootstrap_std_delta": 0.0015138756667544564,
+    "ci_lower_95": -0.002545868188674469,
+    "ci_upper_95": 0.0033823139335656094,
+    "excludes_zero": false,
+    "random_seed": 42,
+    "candidate": "b1_card1",
+    "reference": "b1_card1_card2",
+    "validation_row_count": 88581
+  },
+  "significance_source": "reports/b1/b1_significance.json"
 }

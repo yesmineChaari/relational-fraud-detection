@@ -1,0 +1,53 @@
+{
+  "method": "paired_bootstrap_pr_auc_delta: resample validation-row indices with replacement (identical indices applied to both score vectors per resample), n_resamples draws, 95% CI from the empirical percentiles of the resampled PR-AUC delta",
+  "source": "Regenerated from persisted validation_predictions.parquet files; no retraining.",
+  "comparisons": {
+    "b1_card1_vs_b0": {
+      "metric": "pr_auc",
+      "n_resamples": 10000,
+      "observed_delta": 0.005900558213771667,
+      "bootstrap_mean_delta": 0.0058879989799311165,
+      "bootstrap_std_delta": 0.001987241287356355,
+      "ci_lower_95": 0.0019923064590710526,
+      "ci_upper_95": 0.009763494275780703,
+      "excludes_zero": true,
+      "random_seed": 42,
+      "candidate": "b1_card1",
+      "reference": "b0",
+      "validation_row_count": 88581
+    },
+    "b1_card1_card2_vs_b0": {
+      "metric": "pr_auc",
+      "n_resamples": 10000,
+      "observed_delta": 0.005511605534224251,
+      "bootstrap_mean_delta": 0.005463532903004753,
+      "bootstrap_std_delta": 0.0019826746938711513,
+      "ci_lower_95": 0.0016137968950045935,
+      "ci_upper_95": 0.0093553770961777,
+      "excludes_zero": true,
+      "random_seed": 42,
+      "candidate": "b1_card1_card2",
+      "reference": "b0",
+      "validation_row_count": 88581
+    },
+    "b1_card1_vs_b1_card1_card2": {
+      "metric": "pr_auc",
+      "n_resamples": 10000,
+      "observed_delta": 0.0003889526795474163,
+      "bootstrap_mean_delta": 0.0004244660769263632,
+      "bootstrap_std_delta": 0.0015138756667544564,
+      "ci_lower_95": -0.002545868188674469,
+      "ci_upper_95": 0.0033823139335656094,
+      "excludes_zero": false,
+      "random_seed": 42,
+      "candidate": "b1_card1",
+      "reference": "b1_card1_card2",
+      "validation_row_count": 88581
+    }
+  },
+  "versions": {
+    "numpy": "2.5.2",
+    "pandas": "3.0.5"
+  },
+  "generated_at_utc": "2026-09-07T09:40:12.082823+00:00"
+}
