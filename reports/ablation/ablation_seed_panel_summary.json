@@ -1,0 +1,156 @@
+{
+  "report_name": "Seed panel for a relational ablation variant",
+  "relation": "card1",
+  "ablation_mode": "loo",
+  "ablated_feature": "card1_prior_count_24h",
+  "variant": "loo_prior_count_24h",
+  "reference_configuration": "b1_card1_converged",
+  "protocol": "converged (cap 15,000, stop_average_precision)",
+  "question": "Does this variant's advantage over its reference survive refitting under several seeds, or was the single-seed result a draw?",
+  "panel_seeds": [
+    42,
+    202,
+    707,
+    1337,
+    2024
+  ],
+  "paired_seeds": [
+    42,
+    202,
+    707,
+    1337,
+    2024
+  ],
+  "panel_complete": true,
+  "frozen_seed": 42,
+  "clean_stratum_noise_floor": 0.000514200988964303,
+  "noise_floor_source": "reports/seed_variance/seed_variance_summary.json",
+  "delta_pr_auc_all_seeds": {
+    "n": 5,
+    "mean": 0.0056725847405858735,
+    "std": 0.00549510666523205,
+    "min": 0.0013641574019447322,
+    "max": 0.014851115767077983
+  },
+  "early_stopping_stratification": {
+    "rule": "A seed is contaminated when one model's best iteration exceeds the other's by more than 2x. Early stopping selects the round maximising validation average precision, the reported metric, so a model granted far more rounds than its opponent wins partly on the stopping point rather than on its predictors.",
+    "why_not_the_inherited_rule": "summarize_seed_variance strata on whether either model reached the estimator cap. At the converged cap (15,000) no run reaches it, so that criterion labels every seed identically and separates nothing.",
+    "threshold_fixed_when": "Stated while three of the five seeds had been trained, before the remaining two existed. Both strata are always reported so a reader can apply a different threshold to the per-seed table.",
+    "max_best_iteration_ratio": 2.0,
+    "n_clean": 4,
+    "n_contaminated": 1,
+    "clean_seeds": [
+      42,
+      202,
+      1337,
+      2024
+    ],
+    "contaminated_seeds": [
+      707
+    ],
+    "clean_delta_pr_auc": {
+      "n": 4,
+      "mean": 0.003377951983962846,
+      "std": 0.002271416539941755,
+      "min": 0.0013641574019447322,
+      "max": 0.005484368070029166
+    },
+    "clean_delta_sign_stable": true,
+    "roc_auc_delta_all_seeds": {
+      "n": 5,
+      "mean": -0.0019202616929969274,
+      "std": 0.0007958726733898976,
+      "min": -0.002975631517538102,
+      "max": -0.0010145473550829953
+    },
+    "roc_auc_delta_sign_stable": true,
+    "roc_auc_is_not_the_stopping_metric": true
+  },
+  "outcome": {
+    "outcome_code": "DELTA_SIGN_STABLE_ACROSS_SEEDS",
+    "conclusion": "The paired delta keeps its sign across all 4 clean seeds (mean +0.00338, sd 0.00227, 1.5 sd from zero). The direction is a property of the predictors rather than of the seed. The magnitude, however, is what the seed panel revises: quote the clean-stratum mean, not the single-seed figure that motivated the check.",
+    "clean_delta_sign_stable": true,
+    "clean_delta_mean": 0.003377951983962846,
+    "clean_delta_std": 0.002271416539941755,
+    "clean_delta_standard_deviations_from_zero": 1.4871565494761543
+  },
+  "runs": [
+    {
+      "seed": 42,
+      "variant_pr_auc": 0.660982131779961,
+      "variant_roc_auc": 0.9251179735317875,
+      "variant_best_iteration": 8219,
+      "reference_pr_auc": 0.6554977637099318,
+      "reference_roc_auc": 0.9280936050493256,
+      "reference_best_iteration": 6087,
+      "delta_pr_auc": 0.005484368070029166,
+      "delta_roc_auc": -0.002975631517538102,
+      "best_iteration_ratio": 1.3502546410382783,
+      "early_stopping_clean": true,
+      "longer_trained": "variant"
+    },
+    {
+      "seed": 202,
+      "variant_pr_auc": 0.6578228949589152,
+      "variant_roc_auc": 0.9247657306221687,
+      "variant_best_iteration": 8486,
+      "reference_pr_auc": 0.6564587375569705,
+      "reference_roc_auc": 0.9265015656337833,
+      "reference_best_iteration": 7011,
+      "delta_pr_auc": 0.0013641574019447322,
+      "delta_roc_auc": -0.0017358350116145616,
+      "best_iteration_ratio": 1.2103836827841963,
+      "early_stopping_clean": true,
+      "longer_trained": "variant"
+    },
+    {
+      "seed": 707,
+      "variant_pr_auc": 0.6574964844074889,
+      "variant_roc_auc": 0.9259572083951786,
+      "variant_best_iteration": 8115,
+      "reference_pr_auc": 0.6426453686404109,
+      "reference_roc_auc": 0.9273633899755858,
+      "reference_best_iteration": 3644,
+      "delta_pr_auc": 0.014851115767077983,
+      "delta_roc_auc": -0.0014061815804071731,
+      "best_iteration_ratio": 2.226948408342481,
+      "early_stopping_clean": false,
+      "longer_trained": "variant"
+    },
+    {
+      "seed": 1337,
+      "variant_pr_auc": 0.6579053593607991,
+      "variant_roc_auc": 0.9250855842626398,
+      "variant_best_iteration": 6807,
+      "reference_pr_auc": 0.6564420532936598,
+      "reference_roc_auc": 0.9261001316177228,
+      "reference_best_iteration": 9310,
+      "delta_pr_auc": 0.0014633060671392917,
+      "delta_roc_auc": -0.0010145473550829953,
+      "best_iteration_ratio": 1.3677097105920375,
+      "early_stopping_clean": true,
+      "longer_trained": "reference"
+    },
+    {
+      "seed": 2024,
+      "variant_pr_auc": 0.6549407620938974,
+      "variant_roc_auc": 0.9242720056357021,
+      "variant_best_iteration": 7212,
+      "reference_pr_auc": 0.6497407856971592,
+      "reference_roc_auc": 0.9267411186360439,
+      "reference_best_iteration": 4651,
+      "delta_pr_auc": 0.005199976396738193,
+      "delta_roc_auc": -0.002469113000341805,
+      "best_iteration_ratio": 1.550634272199527,
+      "early_stopping_clean": true,
+      "longer_trained": "variant"
+    }
+  ],
+  "runs_table_path": "reports/ablation/ablation_seed_panel_runs.csv",
+  "test_evaluated": false,
+  "versions": {
+    "numpy": "2.5.2",
+    "pandas": "3.0.5"
+  },
+  "generated_at_utc": "2026-09-09T20:42:15.996330+00:00"
+}
