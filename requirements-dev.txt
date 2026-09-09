@@ -1,0 +1,12 @@
+# Development and continuous-integration tooling.
+#
+# Kept separate from requirements.txt so the runtime stack that produced the
+# frozen artifacts stays exactly what it was. Nothing here is imported by any
+# module under src/; adding a linter must never change what a training run
+# computes.
+
+-r requirements.txt
+
+# Formatting, linting and import ordering in one tool. Pinned so a release
+# adding a new default rule cannot turn the build red without a commit.
+ruff==0.14.5

@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# A superseded run on the same branch has nothing left to tell us.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  static-checks:
+    name: Static checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      # Only the linter is needed here. Installing the full runtime stack --
+      # torch in particular -- to check import order would triple this job for
+      # nothing, and it must fail fast: a formatting slip should not wait on a
+      # ten-minute test run to report itself.
+      - name: Install the linter
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "$(grep -E '^ruff==' requirements-dev.txt)"
+
+      - name: Lint and import ordering
+        run: ruff check --output-format=github .
+
+      - name: Formatting
+        run: ruff format --check --diff .
+
+  tests:
+    name: Test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Report parquet is stored in LFS. Without the objects those files check
+      # out as pointer text, and the tests that read them fail with a parquet
+      # error rather than skipping -- a confusing red build caused by checkout
+      # settings rather than by code.
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install the pinned stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Record the resolved environment
+        run: python -m pip freeze
+
+      # The raw dataset is gitignored, so a clean checkout has none of it.
+      # Tests that need it skip themselves; the synthetic-fixture tests, which
+      # are the substance of the suite, run regardless. Benchmarks are excluded:
+      # they assert on wall-clock throughput and would go red under runner load.
+      - name: Run the gating suite
+        run: pytest -m "not benchmark" -q --durations=10
+
+  # Reported, never gating. A slow benchmark is information; a red build from a
+  # busy runner is noise that teaches people to ignore the build.
+  benchmarks:
+    name: Benchmarks (non-gating)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install the pinned stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Run benchmarks
+        run: pytest -m benchmark -q --durations=0
