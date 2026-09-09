@@ -13,7 +13,6 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 
 try:
     from .train_lightgbm_baseline import (
-        CATEGORY_MAPPINGS_PATH,
         FEATURE_IMPORTANCE_PATH,
         METADATA_PATH,
         METRICS_PATH,
@@ -28,7 +27,6 @@ try:
     )
 except ImportError:  # Direct script execution.
     from train_lightgbm_baseline import (
-        CATEGORY_MAPPINGS_PATH,
         FEATURE_IMPORTANCE_PATH,
         METADATA_PATH,
         METRICS_PATH,
@@ -72,9 +70,7 @@ def normalize_original_archive_metadata(path: Path) -> None:
         {
             "run_name": ORIGINAL_RUN,
             "archived_original_baseline": True,
-            "validation_metrics_path": repository_relative(
-                ORIGINAL_REPORT_DIR / "metrics.json"
-            ),
+            "validation_metrics_path": repository_relative(ORIGINAL_REPORT_DIR / "metrics.json"),
             "validation_predictions_path": repository_relative(
                 ORIGINAL_REPORT_DIR / "validation_predictions.parquet"
             ),
@@ -96,36 +92,29 @@ def archive_original_baseline() -> None:
     archive_targets = {
         METRICS_PATH: ORIGINAL_REPORT_DIR / "metrics.json",
         METADATA_PATH: archived_metadata,
-        VALIDATION_PREDICTIONS_PATH: (
-            ORIGINAL_REPORT_DIR / "validation_predictions.parquet"
-        ),
+        VALIDATION_PREDICTIONS_PATH: (ORIGINAL_REPORT_DIR / "validation_predictions.parquet"),
         FEATURE_IMPORTANCE_PATH: ORIGINAL_REPORT_DIR / "feature_importance.csv",
         MODEL_PATH: ORIGINAL_MODEL_PATH,
     }
 
     if archived_metadata.exists():
         metadata = read_json(archived_metadata)
-        if (
-            int(metadata.get("best_iteration", -1))
-            != ORIGINAL_METRICS["best_iteration"]
-            or not np.isclose(
-                float(metadata.get("scale_pos_weight", np.nan)),
-                ORIGINAL_METRICS["scale_pos_weight"],
-            )
+        if int(metadata.get("best_iteration", -1)) != ORIGINAL_METRICS[
+            "best_iteration"
+        ] or not np.isclose(
+            float(metadata.get("scale_pos_weight", np.nan)),
+            ORIGINAL_METRICS["scale_pos_weight"],
         ):
             raise ValueError("Existing original-baseline archive is not authoritative.")
         missing = [str(path) for path in archive_targets.values() if not path.exists()]
         if missing:
-            raise FileNotFoundError(
-                f"Original-baseline archive is incomplete: {missing}"
-            )
+            raise FileNotFoundError(f"Original-baseline archive is incomplete: {missing}")
         normalize_original_archive_metadata(archived_metadata)
         return
 
     if ORIGINAL_REPORT_DIR.exists() and any(ORIGINAL_REPORT_DIR.iterdir()):
         raise FileExistsError(
-            "Refusing to overwrite a partial original-baseline archive: "
-            f"{ORIGINAL_REPORT_DIR}"
+            f"Refusing to overwrite a partial original-baseline archive: {ORIGINAL_REPORT_DIR}"
         )
 
     current_metrics = read_json(METRICS_PATH)
@@ -133,8 +122,7 @@ def archive_original_baseline() -> None:
     if (
         not np.isclose(current_metrics["pr_auc"], ORIGINAL_METRICS["pr_auc"])
         or not np.isclose(current_metrics["roc_auc"], ORIGINAL_METRICS["roc_auc"])
-        or int(current_metadata["best_iteration"])
-        != ORIGINAL_METRICS["best_iteration"]
+        or int(current_metadata["best_iteration"]) != ORIGINAL_METRICS["best_iteration"]
         or not np.isclose(
             current_metadata["scale_pos_weight"],
             ORIGINAL_METRICS["scale_pos_weight"],
@@ -166,9 +154,7 @@ def assert_no_test_metrics(payload: dict[str, Any], source_name: str) -> None:
     }
     present = forbidden & set(payload)
     if present:
-        raise AssertionError(
-            f"Test metrics found in {source_name}: {sorted(present)}."
-        )
+        raise AssertionError(f"Test metrics found in {source_name}: {sorted(present)}.")
     if payload.get("test_evaluated") is not False:
         raise AssertionError(f"{source_name} must record test_evaluated=false.")
 
@@ -238,9 +224,7 @@ def validate_candidate(run_name: str, expected_weight: float) -> dict[str, Any]:
         "paths": paths,
         "metrics": metrics,
         "metadata": metadata,
-        "prediction_metadata": predictions[
-            ["TransactionID", "TransactionDT", "isFraud"]
-        ],
+        "prediction_metadata": predictions[["TransactionID", "TransactionDT", "isFraud"]],
     }
 
 
@@ -264,13 +248,9 @@ def assert_candidates_are_controlled(
     weighted_params.pop("scale_pos_weight")
     unweighted_params.pop("scale_pos_weight")
     if weighted_params != unweighted_params:
-        raise AssertionError(
-            "Candidate model settings differ beyond scale_pos_weight."
-        )
+        raise AssertionError("Candidate model settings differ beyond scale_pos_weight.")
 
-    if not weighted["prediction_metadata"].equals(
-        unweighted["prediction_metadata"]
-    ):
+    if not weighted["prediction_metadata"].equals(unweighted["prediction_metadata"]):
         raise AssertionError("Candidate validation observations or order differ.")
 
 
@@ -290,14 +270,11 @@ def comparison_row(
             metadata.get("actual_stopping_iteration", metadata["best_iteration"])
         ),
         "best_iteration": int(metadata["best_iteration"]),
-        "early_stopping_triggered": bool(
-            metadata.get("early_stopping_triggered", False)
-        ),
+        "early_stopping_triggered": bool(metadata.get("early_stopping_triggered", False)),
         "estimator_cap_reached": bool(
             metadata.get(
                 "estimator_cap_reached",
-                metadata["best_iteration"]
-                == metadata["lightgbm_parameters"]["n_estimators"],
+                metadata["best_iteration"] == metadata["lightgbm_parameters"]["n_estimators"],
             )
         ),
         "validation_pr_auc": float(metrics["pr_auc"]),
@@ -351,9 +328,7 @@ def freeze_selected_b0(selected: dict[str, Any], selected_run_name: str) -> None
             "selected_experiment_metadata_path": repository_relative(paths.metadata),
             "selected_experiment_model_path": repository_relative(paths.model),
             "validation_metrics_path": repository_relative(METRICS_PATH),
-            "validation_predictions_path": repository_relative(
-                VALIDATION_PREDICTIONS_PATH
-            ),
+            "validation_predictions_path": repository_relative(VALIDATION_PREDICTIONS_PATH),
             "feature_importance_path": repository_relative(FEATURE_IMPORTANCE_PATH),
             "model_path": repository_relative(MODEL_PATH),
             "test_evaluated": False,

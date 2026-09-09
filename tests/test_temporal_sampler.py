@@ -5,6 +5,7 @@ import unittest
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from src.graph.build_transaction_graph import ENTITY_EDGES_PATH
 from src.graph.temporal_contract import validate_sampled_neighborhood
@@ -24,31 +25,27 @@ def make_index(entities: dict[int, list[tuple[int, float]]]):
     for entity_id, members in entities.items():
         for node_id, dt in members:
             rows.append({"entity_id": entity_id, "node_id": node_id, "TransactionDT": dt})
-    edges_df = pd.DataFrame(rows).sort_values(
-        ["entity_id", "TransactionDT", "node_id"], kind="mergesort"
-    ).reset_index(drop=True)
+    edges_df = (
+        pd.DataFrame(rows)
+        .sort_values(["entity_id", "TransactionDT", "node_id"], kind="mergesort")
+        .reset_index(drop=True)
+    )
     return build_temporal_graph_index(edges_df)
 
 
 class BuildIndexValidationTests(unittest.TestCase):
     def test_rejects_edges_not_sorted_by_entity(self) -> None:
-        edges_df = pd.DataFrame(
-            {"entity_id": [1, 0], "node_id": [0, 1], "TransactionDT": [10, 20]}
-        )
+        edges_df = pd.DataFrame({"entity_id": [1, 0], "node_id": [0, 1], "TransactionDT": [10, 20]})
         with self.assertRaises(ValueError):
             build_temporal_graph_index(edges_df)
 
     def test_rejects_edges_not_sorted_by_time_within_entity(self) -> None:
-        edges_df = pd.DataFrame(
-            {"entity_id": [0, 0], "node_id": [0, 1], "TransactionDT": [20, 10]}
-        )
+        edges_df = pd.DataFrame({"entity_id": [0, 0], "node_id": [0, 1], "TransactionDT": [20, 10]})
         with self.assertRaises(ValueError):
             build_temporal_graph_index(edges_df)
 
     def test_rejects_non_dense_node_ids(self) -> None:
-        edges_df = pd.DataFrame(
-            {"entity_id": [0, 0], "node_id": [0, 5], "TransactionDT": [10, 20]}
-        )
+        edges_df = pd.DataFrame({"entity_id": [0, 0], "node_id": [0, 5], "TransactionDT": [10, 20]})
         with self.assertRaises(ValueError):
             build_temporal_graph_index(edges_df)
 
@@ -150,9 +147,7 @@ class SampleKHopCompositionTests(unittest.TestCase):
         # were bounded by N's own dt instead of the target's, M would be
         # wrongly excluded from N's hop-2 neighbours. Target-anchoring must
         # include it.
-        self.index = make_index(
-            {0: [(0, 100), (1, 900), (2, 950), (3, 1000), (4, 1500)]}
-        )
+        self.index = make_index({0: [(0, 100), (1, 900), (2, 950), (3, 1000), (4, 1500)]})
 
     def test_hop_1_matches_direct_admissibility(self) -> None:
         layers = sample_k_hop(
@@ -220,19 +215,14 @@ class SampleKHopCompositionTests(unittest.TestCase):
 
 class TimeShuffleLiveFilterTests(unittest.TestCase):
     def test_shuffling_timestamps_changes_the_sampled_neighborhood(self) -> None:
-        rng = np.random.default_rng(0)
-        original = make_index(
-            {0: [(0, 100), (1, 200), (2, 300), (3, 400), (4, 500)]}
-        )
+        original = make_index({0: [(0, 100), (1, 200), (2, 300), (3, 400), (4, 500)]})
         original_neighbors = set(admissible_neighbors(original, 4).tolist())
         self.assertEqual(original_neighbors, {0, 1, 2, 3})
 
         # Re-assign timestamps so node 4 (formerly last) is now earliest;
         # if the sampler were reading row/position order instead of the
         # actual TransactionDT values, this would not change its output.
-        shuffled = make_index(
-            {0: [(0, 500), (1, 200), (2, 300), (3, 400), (4, 100)]}
-        )
+        shuffled = make_index({0: [(0, 500), (1, 200), (2, 300), (3, 400), (4, 100)]})
         shuffled_neighbors = set(admissible_neighbors(shuffled, 4).tolist())
         self.assertEqual(shuffled_neighbors, set())
         self.assertNotEqual(original_neighbors, shuffled_neighbors)
@@ -251,33 +241,87 @@ class ProbeTransactionDirectComparisonTests(unittest.TestCase):
         for target_node_id in probe_targets:
             target_position = index.position_of_node[target_node_id]
             target_dt = float(index.transaction_dt[target_position])
-            layers = sample_k_hop(
-                index, target_node_id=target_node_id, fan_outs=[4, 4], rng=rng
-            )
+            layers = sample_k_hop(index, target_node_id=target_node_id, fan_outs=[4, 4], rng=rng)
             for node_ids, mask in layers:
                 valid_positions = index.position_of_node[node_ids[mask]]
                 observed_dts = index.transaction_dt[valid_positions]
                 validate_sampled_neighborhood(target_dt, observed_dts.tolist())
 
 
-class PerformanceSanityTests(unittest.TestCase):
-    def test_many_samples_complete_quickly_on_a_moderately_sized_graph(self) -> None:
-        n_entities = 200
-        members_per_entity = 200
-        entities = {
-            entity: [(entity * members_per_entity + i, float(i)) for i in range(members_per_entity)]
-            for entity in range(n_entities)
-        }
-        index = make_index(entities)
-        rng = np.random.default_rng(0)
-        targets = [entity * members_per_entity + members_per_entity - 1 for entity in range(n_entities)]
+def make_uniform_entities(n_entities: int, members_per_entity: int):
+    """`n_entities` entities of equal size, each member one time step apart."""
+    return {
+        entity: [(entity * members_per_entity + i, float(i)) for i in range(members_per_entity)]
+        for entity in range(n_entities)
+    }
 
-        started = time.perf_counter()
-        for target in targets:
-            sample_k_hop(index, target_node_id=target, fan_outs=[10, 10], rng=rng)
-        elapsed = time.perf_counter() - started
 
-        self.assertLess(elapsed, 5.0)
+def count_sampled_slots(index, targets, fan_outs, seed: int = 0) -> int:
+    """Total node slots the sampler materialises across every hop and target.
+
+    A direct measure of work done, in place of elapsed time: it counts what the
+    sampler actually touched rather than how fast the machine happened to be.
+    """
+    rng = np.random.default_rng(seed)
+    return sum(
+        int(
+            sum(
+                len(node_ids)
+                for node_ids, _ in sample_k_hop(
+                    index, target_node_id=int(target), fan_outs=fan_outs, rng=rng
+                )
+            )
+        )
+        for target in targets
+    )
+
+
+class SamplingWorkBoundTests(unittest.TestCase):
+    """Complexity assertions on the sampler, replacing a wall-clock benchmark.
+
+    The property that makes k-hop sampling viable for training is that the work
+    per target depends on the fan-outs, not on how large the entity is. A
+    wall-clock threshold tests that only indirectly and fails under machine
+    load, so these assert the bound itself.
+    """
+
+    def test_work_per_target_is_bounded_by_the_fan_out_product(self) -> None:
+        fan_outs = [10, 10]
+        index = make_index(make_uniform_entities(20, 200))
+        targets = [entity * 200 + 199 for entity in range(20)]
+
+        # Hop h materialises at most prod(fan_outs[:h+1]) slots.
+        per_target_bound = sum(int(np.prod(fan_outs[: hop + 1])) for hop in range(len(fan_outs)))
+        observed = count_sampled_slots(index, targets, fan_outs)
+
+        self.assertLessEqual(observed, per_target_bound * len(targets))
+        self.assertGreater(observed, 0)
+
+    def test_work_does_not_grow_with_entity_size(self) -> None:
+        # The claim that matters: a card with 2,000 prior transactions costs the
+        # sampler no more than one with 200. Ten times the history, same work.
+        fan_outs = [10, 10]
+        small = make_index(make_uniform_entities(4, 200))
+        large = make_index(make_uniform_entities(4, 2_000))
+
+        small_work = count_sampled_slots(
+            small, [entity * 200 + 199 for entity in range(4)], fan_outs
+        )
+        large_work = count_sampled_slots(
+            large, [entity * 2_000 + 1_999 for entity in range(4)], fan_outs
+        )
+
+        self.assertEqual(small_work, large_work)
+
+    def test_work_scales_linearly_in_the_number_of_targets(self) -> None:
+        fan_outs = [10, 10]
+        index = make_index(make_uniform_entities(40, 200))
+        targets = [entity * 200 + 199 for entity in range(40)]
+
+        half = count_sampled_slots(index, targets[:20], fan_outs)
+        full = count_sampled_slots(index, targets, fan_outs)
+
+        self.assertEqual(full, 2 * half)
 
 
 @unittest.skipUnless(
@@ -310,6 +354,7 @@ class RealGraphIntegrationTests(unittest.TestCase):
                 observed_dts = self.index.transaction_dt[valid_positions]
                 validate_sampled_neighborhood(target_dt, observed_dts.tolist())
 
+    @pytest.mark.benchmark
     def test_two_hop_sampling_is_fast_enough_for_a_training_epoch(self) -> None:
         rng = np.random.default_rng(0)
         train_node_ids = self.edges.loc[self.edges["split"] == "train", "node_id"].to_numpy()
@@ -317,9 +362,7 @@ class RealGraphIntegrationTests(unittest.TestCase):
 
         started = time.perf_counter()
         for target_node_id in probes:
-            sample_k_hop(
-                self.index, target_node_id=int(target_node_id), fan_outs=[10, 10], rng=rng
-            )
+            sample_k_hop(self.index, target_node_id=int(target_node_id), fan_outs=[10, 10], rng=rng)
         elapsed = time.perf_counter() - started
 
         rows_per_second = len(probes) / elapsed

@@ -1,0 +1,31 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The gating run excludes benchmarks: `pytest -m "not benchmark"`. A wall-clock
+# assertion inside a gating suite is a permanent source of false failures on
+# shared runners, and a suite that goes red under machine load trains everyone
+# to ignore red builds.
+markers = [
+    "benchmark: wall-clock or throughput measurement; excluded from the gating run",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+# Deliberately narrow. pyflakes catches real defects (undefined names, unused
+# imports, shadowed bindings), pycodestyle errors catch syntax-level mistakes,
+# and isort keeps import order stable so diffs stay readable. Style opinions
+# beyond that are left to `ruff format`.
+select = ["E", "F", "I", "W"]
+ignore = [
+    # Long lines are reported by the formatter, which knows what it can split.
+    "E501",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src", "tests"]
+
+[tool.ruff.lint.per-file-ignores]
+# Test modules import fixtures and symbols to assert they remain importable.
+"tests/*" = ["F401"]
