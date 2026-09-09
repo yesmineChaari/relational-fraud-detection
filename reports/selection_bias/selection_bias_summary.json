@@ -1,0 +1,65 @@
+{
+  "report_name": "Validation-argmax selection-bias screen",
+  "question": "Which published comparisons are distorted by the two arms being granted unequal numbers of boosting rounds before their reported maximum is taken?",
+  "clean_stratum_noise_floor": 0.000514200988964303,
+  "noise_floor_source": "reports/seed_variance/seed_variance_summary.json",
+  "plateau_window": 2000,
+  "classification_rule": "Fixed before the panel was read. A comparison is 'unexposed' when the argmax and matched-budget deltas agree within the seed-variance panel's clean-stratum noise floor -- unequal selection cannot have moved it. Otherwise it is 'exposed', and the direction 'holds' when the delta keeps its sign under all three estimators, or is 'in doubt' when the sign changes between them.",
+  "estimator_decision": "Report the matched-budget delta alongside the argmax, and treat the pair as bounds rather than replacing one with the other. Truncating both arms to the shorter curve penalises the arm that legitimately wanted more rounds, so matched is a lower bound and argmax an upper bound on the same quantity. A comparison is only read as settled where the two agree within the noise floor, or where the plateau level and the off-metric both point the same way. This is deliberately weaker than picking a single estimator: these artifacts cannot separate 'trained longer because it was learning' from 'trained longer because its curve was noisier' without refits at a budget fixed in advance.",
+  "n_comparisons": 15,
+  "classification_counts": {
+    "EXPOSED_DIRECTION_HOLDS": 7,
+    "EXPOSED_DIRECTION_IN_DOUBT": 6,
+    "UNEXPOSED": 2
+  },
+  "unexposed_comparisons": [
+    "b1_card1_vs_b0",
+    "singleton_prior_count_24h_vs_b0"
+  ],
+  "exposed_comparisons": [
+    "g1_card1_vs_b0",
+    "loo_prior_count_24h_vs_b1_card1",
+    "loo_prior_count_24h_vs_b1_card1_seed1337",
+    "loo_prior_count_24h_vs_b1_card1_seed202",
+    "loo_prior_count_24h_vs_b1_card1_seed2024",
+    "loo_prior_count_24h_vs_b1_card1_seed42",
+    "loo_prior_count_24h_vs_b1_card1_seed707",
+    "loo_prior_count_7d_vs_b1_card1",
+    "loo_prior_count_vs_b1_card1",
+    "loo_time_since_previous_hours_vs_b1_card1",
+    "singleton_prior_count_7d_vs_b0",
+    "singleton_prior_count_vs_b0",
+    "singleton_time_since_previous_hours_vs_b0"
+  ],
+  "direction_in_doubt_comparisons": [
+    "loo_prior_count_24h_vs_b1_card1_seed202",
+    "loo_prior_count_24h_vs_b1_card1_seed2024",
+    "loo_prior_count_24h_vs_b1_card1_seed707",
+    "loo_prior_count_vs_b1_card1",
+    "loo_time_since_previous_hours_vs_b1_card1",
+    "singleton_time_since_previous_hours_vs_b0"
+  ],
+  "off_metric_contradicts_stopping_metric": [
+    "loo_prior_count_24h_vs_b1_card1",
+    "loo_prior_count_24h_vs_b1_card1_seed1337",
+    "loo_prior_count_24h_vs_b1_card1_seed202",
+    "loo_prior_count_24h_vs_b1_card1_seed2024",
+    "loo_prior_count_24h_vs_b1_card1_seed42",
+    "loo_prior_count_24h_vs_b1_card1_seed707",
+    "loo_prior_count_vs_b1_card1",
+    "loo_time_since_previous_hours_vs_b1_card1"
+  ],
+  "round_gap_spread": {
+    "min": 76,
+    "max": 4471,
+    "median": 1878.0
+  },
+  "correlation_round_gap_vs_argmax_minus_matched": 0.9499146077279979,
+  "comparison_table_path": "reports/selection_bias/selection_bias_comparison.csv",
+  "test_evaluated": false,
+  "versions": {
+    "numpy": "2.5.2",
+    "pandas": "3.0.5"
+  },
+  "generated_at_utc": "2026-09-09T21:44:26.845098+00:00"
+}
