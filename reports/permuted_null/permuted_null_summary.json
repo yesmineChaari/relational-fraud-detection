@@ -1,0 +1,93 @@
+{
+  "report_name": "Permuted-entity null control for the B1-card1 gain",
+  "relation": "card1",
+  "reference_configuration": "converged (cap 15,000, stop_average_precision, seed 42)",
+  "b0_converged_pr_auc": 0.649193708652322,
+  "b1_card1_converged_pr_auc": 0.6554977637099318,
+  "real_relational_gain_pr_auc": 0.006304055057609892,
+  "permutation_seeds": [
+    1,
+    2,
+    3
+  ],
+  "delta_pr_auc_vs_b0_spread": {
+    "n": 3,
+    "mean": -0.0031201786483541216,
+    "std": 0.0030138847434423204,
+    "min": -0.005967910601271553,
+    "max": 3.611865141994741e-05
+  },
+  "recovered_fraction_spread": {
+    "n": 3,
+    "mean": -0.49494787400177004,
+    "std": 0.47808667847913744,
+    "min": -0.9466780582868539,
+    "max": 0.00572943146750393
+  },
+  "any_permuted_variant_significantly_beats_b0": false,
+  "all_permuted_variants_at_or_below_b0": false,
+  "verdict_rule": "Fixed before any permuted result was seen. 'Recovers a meaningful share of the gain' means a permuted variant significantly beats B0: its paired-bootstrap 95% CI on the permuted-minus-B0 delta excludes zero on the positive side. This is the same significance test every other comparison in this project is settled by; no recovered-fraction threshold is applied, so the fraction is reported for magnitude only.",
+  "outcome": {
+    "outcome_code": "PERMUTED_AT_OR_BELOW_B0",
+    "conclusion": "Entity history confirmed real: no permuted variant significantly beats B0. The B1-card1 gain is attributable to genuine card1 entity history, not to the split-search artifact this control was designed to rule out. The correlational result becomes causal."
+  },
+  "runs": [
+    {
+      "permutation_seed": 1,
+      "pr_auc": 0.6492298273037419,
+      "roc_auc": 0.9235346386362522,
+      "best_iteration": 9390,
+      "estimator_cap_reached": false,
+      "delta_pr_auc_vs_b0": 3.611865141994741e-05,
+      "delta_pr_auc_vs_b0_ci_lower_95": -0.0035968659456810325,
+      "delta_pr_auc_vs_b0_ci_upper_95": 0.0035961428804315546,
+      "delta_pr_auc_vs_b0_excludes_zero": false,
+      "delta_pr_auc_vs_b1_card1": -0.0062679364061899445,
+      "delta_pr_auc_vs_b1_card1_ci_lower_95": -0.010402303388335667,
+      "delta_pr_auc_vs_b1_card1_ci_upper_95": -0.0020955084494553135,
+      "delta_pr_auc_vs_b1_card1_excludes_zero": true,
+      "recovered_fraction_of_real_gain": 0.00572943146750393
+    },
+    {
+      "permutation_seed": 2,
+      "pr_auc": 0.6432257980510504,
+      "roc_auc": 0.9236801098043878,
+      "best_iteration": 5617,
+      "estimator_cap_reached": false,
+      "delta_pr_auc_vs_b0": -0.005967910601271553,
+      "delta_pr_auc_vs_b0_ci_lower_95": -0.009591827750166254,
+      "delta_pr_auc_vs_b0_ci_upper_95": -0.0023948514177576526,
+      "delta_pr_auc_vs_b0_excludes_zero": true,
+      "delta_pr_auc_vs_b1_card1": -0.012271965658881445,
+      "delta_pr_auc_vs_b1_card1_ci_lower_95": -0.016461703043295355,
+      "delta_pr_auc_vs_b1_card1_ci_upper_95": -0.008201255937574776,
+      "delta_pr_auc_vs_b1_card1_excludes_zero": true,
+      "recovered_fraction_of_real_gain": -0.9466780582868539
+    },
+    {
+      "permutation_seed": 3,
+      "pr_auc": 0.6457649646571112,
+      "roc_auc": 0.9226498366674643,
+      "best_iteration": 8644,
+      "estimator_cap_reached": false,
+      "delta_pr_auc_vs_b0": -0.003428743995210759,
+      "delta_pr_auc_vs_b0_ci_lower_95": -0.007100946401392067,
+      "delta_pr_auc_vs_b0_ci_upper_95": 0.0001602959203484901,
+      "delta_pr_auc_vs_b0_excludes_zero": false,
+      "delta_pr_auc_vs_b1_card1": -0.009732799052820651,
+      "delta_pr_auc_vs_b1_card1_ci_lower_95": -0.013800131016299826,
+      "delta_pr_auc_vs_b1_card1_ci_upper_95": -0.005719807404722038,
+      "delta_pr_auc_vs_b1_card1_excludes_zero": true,
+      "recovered_fraction_of_real_gain": -0.54389499518596
+    }
+  ],
+  "comparison_table_path": "reports/permuted_null/permuted_null_comparison.csv",
+  "b0_reference_metrics_path": "reports/convergence_check/b0/stop_average_precision/cap15000_seed42/metrics.json",
+  "b1_card1_reference_metrics_path": "reports/convergence_check/b1_card1/stop_average_precision/cap15000_seed42/metrics.json",
+  "test_evaluated": false,
+  "versions": {
+    "numpy": "2.3.5",
+    "pandas": "2.3.3"
+  },
+  "generated_at_utc": "2026-09-09T10:52:08.765046+00:00"
+}

@@ -1,0 +1,16 @@
+{
+  "relation": "card1",
+  "group_columns": [
+    "card1"
+  ],
+  "permutation_seed": 1,
+  "permutation_method": "Global permutation of the card1 column across all rows (train, validation and test together), independent of TransactionDT. Preserves the exact per-entity transaction-count distribution and the exact timestamp distribution; breaks the correspondence between a transaction and its entity.",
+  "feature_builder": "src.features.build_relational_features.build_relational_features_for",
+  "feature_builder_unchanged": true,
+  "target_labels_used": false,
+  "real_relation_artifacts_untouched": [
+    "data/processed/relational_features_card1.parquet",
+    "reports/relational_features/card1_metadata.json"
+  ],
+  "generated_at_utc": "2026-09-08T10:04:56.507563+00:00"
+}
