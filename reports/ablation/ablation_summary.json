@@ -1,0 +1,282 @@
+{
+  "report_name": "Per-feature ablation of the card1 relational summaries",
+  "relation": "card1",
+  "question": "Which of the four card1 relational summaries carries the +0.00630 B1-card1 gain?",
+  "reference_configuration": "converged (cap 15,000, stop_average_precision, seed 42)",
+  "b0_converged_pr_auc": 0.649193708652322,
+  "b1_card1_converged_pr_auc": 0.6554977637099318,
+  "real_relational_gain_pr_auc": 0.006304055057609892,
+  "ablation_features": [
+    "card1_prior_count",
+    "card1_prior_count_24h",
+    "card1_prior_count_7d",
+    "card1_time_since_previous_hours"
+  ],
+  "modes": [
+    "singleton",
+    "loo"
+  ],
+  "panel_complete": true,
+  "completed_runs": [
+    {
+      "ablation_mode": "singleton",
+      "feature": "card1_prior_count"
+    },
+    {
+      "ablation_mode": "singleton",
+      "feature": "card1_prior_count_24h"
+    },
+    {
+      "ablation_mode": "singleton",
+      "feature": "card1_prior_count_7d"
+    },
+    {
+      "ablation_mode": "singleton",
+      "feature": "card1_time_since_previous_hours"
+    },
+    {
+      "ablation_mode": "loo",
+      "feature": "card1_prior_count"
+    },
+    {
+      "ablation_mode": "loo",
+      "feature": "card1_prior_count_24h"
+    },
+    {
+      "ablation_mode": "loo",
+      "feature": "card1_prior_count_7d"
+    },
+    {
+      "ablation_mode": "loo",
+      "feature": "card1_time_since_previous_hours"
+    }
+  ],
+  "clean_stratum_noise_floor": 0.000514200988964303,
+  "noise_floor_source": "reports/seed_variance/seed_variance_summary.json",
+  "singleton_delta_vs_b0_spread": {
+    "n": 4,
+    "mean": 0.006280524101423324,
+    "std": 0.003214811096417549,
+    "min": 0.0024228425117250874,
+    "max": 0.009309225610354632
+  },
+  "leave_one_out_delta_vs_b1_card1_spread": {
+    "n": 4,
+    "mean": 0.0013640788265592563,
+    "std": 0.002833866161756218,
+    "min": -0.000992046261062085,
+    "max": 0.005484368070029166
+  },
+  "features_carrying_the_gain": [
+    "card1_prior_count",
+    "card1_prior_count_24h",
+    "card1_prior_count_7d"
+  ],
+  "non_redundant_features": [],
+  "singleton_ranking": [
+    {
+      "rank": 1,
+      "feature": "card1_prior_count",
+      "pr_auc": 0.6585029342626766,
+      "delta_pr_auc_vs_reference": 0.009309225610354632,
+      "next_feature": "card1_prior_count_7d",
+      "margin_over_next": 0.0007967012083162084,
+      "margin_exceeds_noise_floor": true
+    },
+    {
+      "rank": 2,
+      "feature": "card1_prior_count_7d",
+      "pr_auc": 0.6577062330543604,
+      "delta_pr_auc_vs_reference": 0.008512524402038424,
+      "next_feature": "card1_prior_count_24h",
+      "margin_over_next": 0.0036350205204632724,
+      "margin_exceeds_noise_floor": true
+    },
+    {
+      "rank": 3,
+      "feature": "card1_prior_count_24h",
+      "pr_auc": 0.6540712125338971,
+      "delta_pr_auc_vs_reference": 0.0048775038815751515,
+      "next_feature": "card1_time_since_previous_hours",
+      "margin_over_next": 0.002454661369850064,
+      "margin_exceeds_noise_floor": true
+    },
+    {
+      "rank": 4,
+      "feature": "card1_time_since_previous_hours",
+      "pr_auc": 0.651616551164047,
+      "delta_pr_auc_vs_reference": 0.0024228425117250874,
+      "next_feature": null,
+      "margin_over_next": null,
+      "margin_exceeds_noise_floor": null
+    }
+  ],
+  "verdict_rule": "Fixed before any ablation result was seen. A feature 'carries the gain' if its singleton (B0 + that feature) paired-bootstrap 95% CI on the delta against converged B0 excludes zero on the positive side. A feature is 'non-redundant' if its leave-one-out (B1-card1 minus that feature) 95% CI on the delta against converged B1-card1 excludes zero on the negative side. Differences between ablation variants smaller than the clean-stratum noise floor from the seed-variance panel are not interpretable as differences, so a singleton ranking is only read as an ordering where the margin clears that floor.",
+  "outcome": {
+    "outcome_code": "REDUNDANT_SUMMARIES_ANY_ONE_SUFFICES",
+    "conclusion": "Redundant summaries: one or more features carry the gain on their own, but no feature is non-redundant -- dropping any single one costs nothing measurable because the others reconstruct it. The four summaries are correlated views of one underlying factor (card1 transaction history), and any one of them recovers the effect."
+  },
+  "runs": [
+    {
+      "ablation_mode": "singleton",
+      "feature": "card1_prior_count",
+      "feature_key": "prior_count",
+      "relational_features_used": "card1_prior_count",
+      "number_of_predictors": 436,
+      "pr_auc": 0.6585029342626766,
+      "roc_auc": 0.9247152136616861,
+      "best_iteration": 7358,
+      "estimator_cap_reached": false,
+      "reference": "b0_converged",
+      "reference_pr_auc": 0.649193708652322,
+      "delta_pr_auc_vs_reference": 0.009309225610354632,
+      "delta_pr_auc_vs_reference_ci_lower_95": 0.00570532410017543,
+      "delta_pr_auc_vs_reference_ci_upper_95": 0.012861870038335162,
+      "delta_pr_auc_vs_reference_excludes_zero": true,
+      "delta_exceeds_noise_floor": true,
+      "fraction_of_real_gain": 1.4767043633473778
+    },
+    {
+      "ablation_mode": "singleton",
+      "feature": "card1_prior_count_24h",
+      "feature_key": "prior_count_24h",
+      "relational_features_used": "card1_prior_count_24h",
+      "number_of_predictors": 436,
+      "pr_auc": 0.6540712125338971,
+      "roc_auc": 0.9277737091352471,
+      "best_iteration": 6155,
+      "estimator_cap_reached": false,
+      "reference": "b0_converged",
+      "reference_pr_auc": 0.649193708652322,
+      "delta_pr_auc_vs_reference": 0.0048775038815751515,
+      "delta_pr_auc_vs_reference_ci_lower_95": 0.0017595438917142325,
+      "delta_pr_auc_vs_reference_ci_upper_95": 0.008009623314384953,
+      "delta_pr_auc_vs_reference_excludes_zero": true,
+      "delta_exceeds_noise_floor": true,
+      "fraction_of_real_gain": 0.7737089598681899
+    },
+    {
+      "ablation_mode": "singleton",
+      "feature": "card1_prior_count_7d",
+      "feature_key": "prior_count_7d",
+      "relational_features_used": "card1_prior_count_7d",
+      "number_of_predictors": 436,
+      "pr_auc": 0.6577062330543604,
+      "roc_auc": 0.9253991775662052,
+      "best_iteration": 9137,
+      "estimator_cap_reached": false,
+      "reference": "b0_converged",
+      "reference_pr_auc": 0.649193708652322,
+      "delta_pr_auc_vs_reference": 0.008512524402038424,
+      "delta_pr_auc_vs_reference_ci_lower_95": 0.005272494012965023,
+      "delta_pr_auc_vs_reference_ci_upper_95": 0.01182968450669223,
+      "delta_pr_auc_vs_reference_excludes_zero": true,
+      "delta_exceeds_noise_floor": true,
+      "fraction_of_real_gain": 1.3503251992957446
+    },
+    {
+      "ablation_mode": "singleton",
+      "feature": "card1_time_since_previous_hours",
+      "feature_key": "time_since_previous_hours",
+      "relational_features_used": "card1_time_since_previous_hours",
+      "number_of_predictors": 436,
+      "pr_auc": 0.651616551164047,
+      "roc_auc": 0.9252209405095132,
+      "best_iteration": 7889,
+      "estimator_cap_reached": false,
+      "reference": "b0_converged",
+      "reference_pr_auc": 0.649193708652322,
+      "delta_pr_auc_vs_reference": 0.0024228425117250874,
+      "delta_pr_auc_vs_reference_ci_lower_95": -0.0006657395342573063,
+      "delta_pr_auc_vs_reference_ci_upper_95": 0.0055623274584817575,
+      "delta_pr_auc_vs_reference_excludes_zero": false,
+      "delta_exceeds_noise_floor": true,
+      "fraction_of_real_gain": 0.38433079812657595
+    },
+    {
+      "ablation_mode": "loo",
+      "feature": "card1_prior_count",
+      "feature_key": "prior_count",
+      "relational_features_used": "card1_prior_count_24h|card1_prior_count_7d|card1_time_since_previous_hours",
+      "number_of_predictors": 438,
+      "pr_auc": 0.6560435797561099,
+      "roc_auc": 0.9259187355696641,
+      "best_iteration": 8213,
+      "estimator_cap_reached": false,
+      "reference": "b1_card1_converged",
+      "reference_pr_auc": 0.6554977637099318,
+      "delta_pr_auc_vs_reference": 0.0005458160461780937,
+      "delta_pr_auc_vs_reference_ci_lower_95": -0.0026809812314933846,
+      "delta_pr_auc_vs_reference_ci_upper_95": 0.0037198253700874706,
+      "delta_pr_auc_vs_reference_excludes_zero": false,
+      "delta_exceeds_noise_floor": true,
+      "fraction_of_real_gain": 0.08658173845090644
+    },
+    {
+      "ablation_mode": "loo",
+      "feature": "card1_prior_count_24h",
+      "feature_key": "prior_count_24h",
+      "relational_features_used": "card1_prior_count|card1_prior_count_7d|card1_time_since_previous_hours",
+      "number_of_predictors": 438,
+      "pr_auc": 0.660982131779961,
+      "roc_auc": 0.9251179735317875,
+      "best_iteration": 8219,
+      "estimator_cap_reached": false,
+      "reference": "b1_card1_converged",
+      "reference_pr_auc": 0.6554977637099318,
+      "delta_pr_auc_vs_reference": 0.005484368070029166,
+      "delta_pr_auc_vs_reference_ci_lower_95": 0.0024334722328885256,
+      "delta_pr_auc_vs_reference_ci_upper_95": 0.008506315892855554,
+      "delta_pr_auc_vs_reference_excludes_zero": true,
+      "delta_exceeds_noise_floor": true,
+      "fraction_of_real_gain": 0.8699746464632718
+    },
+    {
+      "ablation_mode": "loo",
+      "feature": "card1_prior_count_7d",
+      "feature_key": "prior_count_7d",
+      "relational_features_used": "card1_prior_count|card1_prior_count_24h|card1_time_since_previous_hours",
+      "number_of_predictors": 438,
+      "pr_auc": 0.6545057174488698,
+      "roc_auc": 0.9240923812360863,
+      "best_iteration": 7412,
+      "estimator_cap_reached": false,
+      "reference": "b1_card1_converged",
+      "reference_pr_auc": 0.6554977637099318,
+      "delta_pr_auc_vs_reference": -0.000992046261062085,
+      "delta_pr_auc_vs_reference_ci_lower_95": -0.004060028320576387,
+      "delta_pr_auc_vs_reference_ci_upper_95": 0.0020246944785186384,
+      "delta_pr_auc_vs_reference_excludes_zero": false,
+      "delta_exceeds_noise_floor": true,
+      "fraction_of_real_gain": -0.1573663700580381
+    },
+    {
+      "ablation_mode": "loo",
+      "feature": "card1_time_since_previous_hours",
+      "feature_key": "time_since_previous_hours",
+      "relational_features_used": "card1_prior_count|card1_prior_count_24h|card1_prior_count_7d",
+      "number_of_predictors": 438,
+      "pr_auc": 0.6559159411610237,
+      "roc_auc": 0.9259208031333568,
+      "best_iteration": 7703,
+      "estimator_cap_reached": false,
+      "reference": "b1_card1_converged",
+      "reference_pr_auc": 0.6554977637099318,
+      "delta_pr_auc_vs_reference": 0.0004181774510918501,
+      "delta_pr_auc_vs_reference_ci_lower_95": -0.0028393189382911214,
+      "delta_pr_auc_vs_reference_ci_upper_95": 0.003634958795876597,
+      "delta_pr_auc_vs_reference_excludes_zero": false,
+      "delta_exceeds_noise_floor": false,
+      "fraction_of_real_gain": 0.0663346762155972
+    }
+  ],
+  "comparison_table_path": "reports/ablation/ablation_comparison.csv",
+  "b0_reference_metrics_path": "reports/convergence_check/b0/stop_average_precision/cap15000_seed42/metrics.json",
+  "b1_card1_reference_metrics_path": "reports/convergence_check/b1_card1/stop_average_precision/cap15000_seed42/metrics.json",
+  "test_evaluated": false,
+  "versions": {
+    "numpy": "2.5.2",
+    "pandas": "3.0.5"
+  },
+  "generated_at_utc": "2026-09-09T17:59:04.441961+00:00"
+}

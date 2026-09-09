@@ -1,0 +1,65 @@
+{
+  "model": "ablation_card1",
+  "evaluation_split": "validation",
+  "n_transactions": 88581,
+  "n_fraud": 3042,
+  "fraud_rate": 0.03434145019812375,
+  "pr_auc": 0.651616551164047,
+  "roc_auc": 0.9252209405095132,
+  "ranking_metrics": {
+    "top_0.5_pct": {
+      "fraction": 0.005,
+      "k": 443,
+      "frauds_found": 425,
+      "precision": 0.9593679458239278,
+      "recall": 0.13971071663379356
+    },
+    "top_1_pct": {
+      "fraction": 0.01,
+      "k": 886,
+      "frauds_found": 843,
+      "precision": 0.9514672686230248,
+      "recall": 0.27712031558185407
+    },
+    "top_2_pct": {
+      "fraction": 0.02,
+      "k": 1772,
+      "frauds_found": 1451,
+      "precision": 0.8188487584650113,
+      "recall": 0.47698882314266927
+    },
+    "top_5_pct": {
+      "fraction": 0.05,
+      "k": 4430,
+      "frauds_found": 2078,
+      "precision": 0.4690744920993228,
+      "recall": 0.68310322156476
+    }
+  },
+  "test_evaluated": false,
+  "relation": "card1",
+  "ablation_mode": "singleton",
+  "ablated_feature": "card1_time_since_previous_hours",
+  "ablated_feature_key": "time_since_previous_hours",
+  "relational_features_used": [
+    "card1_time_since_previous_hours"
+  ],
+  "relational_features_dropped": [
+    "card1_prior_count",
+    "card1_prior_count_24h",
+    "card1_prior_count_7d"
+  ],
+  "number_of_predictors": 436,
+  "reference_configuration": "b0_converged",
+  "random_seed": 42,
+  "weighting": "weighted",
+  "scale_pos_weight": 27.434310083918007,
+  "maximum_estimators": 15000,
+  "actual_stopping_iteration": 8089,
+  "best_iteration": 7889,
+  "best_validation_average_precision": 0.6516165511640483,
+  "early_stopping_rounds": 200,
+  "early_stopping_triggered": true,
+  "estimator_cap_reached": false,
+  "stop_metric": "average_precision"
+}
