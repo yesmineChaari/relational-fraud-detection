@@ -1,0 +1,36 @@
+{
+  "report_name": "Ablation panel re-derived at an equal estimator budget",
+  "question": "Does the published localisation survive when every model in the panel is scored at one identical number of trees?",
+  "equal_budget_trees": 6011,
+  "best_iteration_by_run": {
+    "b0_ref": 6011,
+    "b1_ref": 6087,
+    "singleton_prior_count": 7358,
+    "loo_prior_count": 8213,
+    "singleton_prior_count_24h": 6155,
+    "loo_prior_count_24h": 8219,
+    "singleton_prior_count_7d": 9137,
+    "loo_prior_count_7d": 7412,
+    "singleton_time_since_previous_hours": 7889,
+    "loo_time_since_previous_hours": 7703
+  },
+  "fidelity_gate_passed": true,
+  "features_carrying_the_gain": [
+    "prior_count",
+    "prior_count_24h"
+  ],
+  "non_redundant_features": [
+    "prior_count",
+    "prior_count_7d",
+    "time_since_previous_hours"
+  ],
+  "outcome_code": "ADDITIVE_CONTRIBUTIONS",
+  "residual_bias_direction": "A common budget truncates whichever arm wanted more rounds, almost always the ablation variant here. This protocol is therefore biased towards non-redundancy exactly as the argmax protocol was biased towards redundancy. The two bound the answer; neither settles it.",
+  "results_table_path": "reports/selection_bias/equal_budget_ablation.csv",
+  "test_evaluated": false,
+  "versions": {
+    "numpy": "2.5.2",
+    "pandas": "3.0.5"
+  },
+  "generated_at_utc": "2026-09-09T22:15:36.905538+00:00"
+}
