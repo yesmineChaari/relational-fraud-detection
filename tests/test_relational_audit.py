@@ -9,10 +9,7 @@ from src.graph.analyze_relations import build_temporal_edges
 
 
 def decode_edges(edge_ids: np.ndarray, n_nodes: int) -> set[tuple[int, int]]:
-    return {
-        (int(edge_id // n_nodes), int(edge_id % n_nodes))
-        for edge_id in edge_ids
-    }
+    return {(int(edge_id // n_nodes), int(edge_id % n_nodes)) for edge_id in edge_ids}
 
 
 class TemporalEdgeTests(unittest.TestCase):
@@ -41,9 +38,7 @@ class TemporalEdgeTests(unittest.TestCase):
         proxy = pd.Series(["entity"] * len(df), dtype="string")
 
         edges = decode_edges(build_temporal_edges(df, proxy, 3), len(df))
-        destinations_for_last = {
-            destination for source, destination in edges if source == 4
-        }
+        destinations_for_last = {destination for source, destination in edges if source == 4}
 
         self.assertEqual(destinations_for_last, {1, 2, 3})
         self.assertNotIn((4, 0), edges)
@@ -103,8 +98,7 @@ class TemporalEdgeTests(unittest.TestCase):
         expected: set[tuple[int, int]] = set()
         for row_index, row in df.iterrows():
             strictly_earlier = df.loc[
-                proxy.eq(proxy.iloc[row_index])
-                & df["TransactionDT"].lt(row["TransactionDT"])
+                proxy.eq(proxy.iloc[row_index]) & df["TransactionDT"].lt(row["TransactionDT"])
             ].sort_values(["TransactionDT", "node_id"])
             for destination in strictly_earlier["node_id"].tail(k_previous):
                 expected.add((int(row["node_id"]), int(destination)))

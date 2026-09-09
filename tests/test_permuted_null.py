@@ -252,9 +252,7 @@ class PermutationTests(unittest.TestCase):
         source = source_frame()
         source.loc[:9, "card1"] = np.nan
         permuted = permute_card1(source, permutation_seed=1)
-        self.assertEqual(
-            int(source["card1"].isna().sum()), int(permuted["card1"].isna().sum())
-        )
+        self.assertEqual(int(source["card1"].isna().sum()), int(permuted["card1"].isna().sum()))
 
 
 class FrozenConfigurationTests(unittest.TestCase):
@@ -368,8 +366,9 @@ class SpreadTests(unittest.TestCase):
 
 class DiscoverRunsTests(unittest.TestCase):
     def _discover_in(self, root: Path) -> list[int]:
-        with patch("src.models.compare_permuted_null.REPORT_DIR", root), patch(
-            "src.models.train_lightgbm_permuted_null.REPORT_DIR", root
+        with (
+            patch("src.models.compare_permuted_null.REPORT_DIR", root),
+            patch("src.models.train_lightgbm_permuted_null.REPORT_DIR", root),
         ):
             return discover_runs()
 

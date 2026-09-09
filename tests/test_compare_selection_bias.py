@@ -40,9 +40,10 @@ class NoiseFloorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "seed_variance_summary.json"
             write_summary(path, nested(0.000514200988964303))
-            with patch(
-                "src.models.compare_selection_bias.SEED_VARIANCE_SUMMARY_PATH", path
-            ), patch("src.models.compare_selection_bias.ROOT_DIR", Path(tmp)):
+            with (
+                patch("src.models.compare_selection_bias.SEED_VARIANCE_SUMMARY_PATH", path),
+                patch("src.models.compare_selection_bias.ROOT_DIR", Path(tmp)),
+            ):
                 floor, source = load_noise_floor()
         self.assertAlmostEqual(floor, 0.000514200988964303)
         self.assertIn("seed_variance_summary.json", source)
@@ -61,9 +62,7 @@ class NoiseFloorTests(unittest.TestCase):
                     },
                 },
             )
-            with patch(
-                "src.models.compare_selection_bias.SEED_VARIANCE_SUMMARY_PATH", path
-            ):
+            with patch("src.models.compare_selection_bias.SEED_VARIANCE_SUMMARY_PATH", path):
                 with self.assertRaises(KeyError):
                     load_noise_floor()
 
@@ -71,9 +70,7 @@ class NoiseFloorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "seed_variance_summary.json"
             write_summary(path, nested(0.0))
-            with patch(
-                "src.models.compare_selection_bias.SEED_VARIANCE_SUMMARY_PATH", path
-            ):
+            with patch("src.models.compare_selection_bias.SEED_VARIANCE_SUMMARY_PATH", path):
                 with self.assertRaises(ValueError):
                     load_noise_floor()
 
@@ -135,9 +132,7 @@ class RegistryTests(unittest.TestCase):
         for key in ("prior_count", "prior_count_24h", "prior_count_7d"):
             self.assertIn(f"singleton_{key}_vs_b0", comparisons)
             self.assertIn(f"loo_{key}_vs_b1_card1", comparisons)
-        self.assertEqual(
-            sum(entry["family"] == "seed_panel" for entry in registry), 5
-        )
+        self.assertEqual(sum(entry["family"] == "seed_panel" for entry in registry), 5)
 
     def test_every_entry_names_a_reference_and_a_variant(self):
         for entry in build_registry():
@@ -198,9 +193,7 @@ class SummarizeTests(unittest.TestCase):
 
     def test_flags_where_the_off_metric_contradicts_the_stopping_metric(self):
         summary = summarize(self.make_table(), 0.000514, "reports/x.json")
-        self.assertEqual(
-            summary["off_metric_contradicts_stopping_metric"], ["doubtful_one"]
-        )
+        self.assertEqual(summary["off_metric_contradicts_stopping_metric"], ["doubtful_one"])
 
     def test_carries_the_noise_floor_and_its_source_through(self):
         summary = summarize(self.make_table(), 0.000514, "reports/seed.json")

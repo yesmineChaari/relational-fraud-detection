@@ -31,9 +31,11 @@ def make_index(entities: dict[int, list[tuple[int, float]]]):
     for entity_id, members in entities.items():
         for node_id, dt in members:
             rows.append({"entity_id": entity_id, "node_id": node_id, "TransactionDT": dt})
-    edges_df = pd.DataFrame(rows).sort_values(
-        ["entity_id", "TransactionDT", "node_id"], kind="mergesort"
-    ).reset_index(drop=True)
+    edges_df = (
+        pd.DataFrame(rows)
+        .sort_values(["entity_id", "TransactionDT", "node_id"], kind="mergesort")
+        .reset_index(drop=True)
+    )
     return build_temporal_graph_index(edges_df)
 
 
@@ -71,9 +73,7 @@ class L2NormalizeTests(unittest.TestCase):
 
 class GatherFeaturesTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.features = np.array(
-            [[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]], dtype=np.float32
-        )
+        self.features = np.array([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]], dtype=np.float32)
 
     def test_pad_node_id_is_returned_as_a_zero_row(self) -> None:
         ids = np.array([0, PAD_NODE_ID, 2])
@@ -102,9 +102,7 @@ class GatherFeaturesTests(unittest.TestCase):
 class SampleBatchNeighborhoodsTests(unittest.TestCase):
     def setUp(self) -> None:
         # Single entity: A(0,100) < N(1,900) < M(2,950) < T(3,1000) < F(4,1500)
-        self.index = make_index(
-            {0: [(0, 100), (1, 900), (2, 950), (3, 1000), (4, 1500)]}
-        )
+        self.index = make_index({0: [(0, 100), (1, 900), (2, 950), (3, 1000), (4, 1500)]})
 
     def test_output_shapes_match_the_batch_and_fanouts(self) -> None:
         targets = np.array([3, 0])

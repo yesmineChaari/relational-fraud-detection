@@ -3,7 +3,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-
 RAW_DIR = Path("data/raw")
 REPORT_DIR = Path("reports/data_profile")
 
@@ -31,9 +30,7 @@ def profile_columns(df: pd.DataFrame) -> pd.DataFrame:
                 "missing_pct": missing_count / len(series),
                 "unique_count": unique_count,
                 "unique_pct_non_null": (
-                    unique_count / non_null_count
-                    if non_null_count > 0
-                    else np.nan
+                    unique_count / non_null_count if non_null_count > 0 else np.nan
                 ),
                 "is_all_missing": non_null_count == 0,
                 "is_constant": unique_count <= 1,
@@ -49,9 +46,7 @@ def numeric_profile(df: pd.DataFrame) -> pd.DataFrame:
     if numeric.empty:
         return pd.DataFrame()
 
-    stats = numeric.describe(
-        percentiles=[0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99]
-    ).T
+    stats = numeric.describe(percentiles=[0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99]).T
 
     stats.index.name = "column"
 
@@ -59,18 +54,14 @@ def numeric_profile(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def categorical_profile(df: pd.DataFrame) -> pd.DataFrame:
-    categorical = df.select_dtypes(
-        include=["object", "category"]
-    )
+    categorical = df.select_dtypes(include=["object", "category"])
 
     rows = []
 
     for column in categorical.columns:
         series = categorical[column]
 
-        value_counts = series.value_counts(
-            dropna=False
-        )
+        value_counts = series.value_counts(dropna=False)
 
         top_values = value_counts.head(10)
 
@@ -80,8 +71,7 @@ def categorical_profile(df: pd.DataFrame) -> pd.DataFrame:
                 "missing_pct": series.isna().mean(),
                 "unique_count": series.nunique(dropna=True),
                 "top_10_values": " | ".join(
-                    f"{repr(value)}:{count}"
-                    for value, count in top_values.items()
+                    f"{repr(value)}:{count}" for value, count in top_values.items()
                 ),
             }
         )
@@ -143,10 +133,7 @@ def print_feature_families(columns: list[str]) -> None:
 
     for family, family_columns in families.items():
         if family_columns:
-            print(
-                f"{family:10s}: "
-                f"{len(family_columns):3d} columns"
-            )
+            print(f"{family:10s}: {len(family_columns):3d} columns")
             print(f"  {family_columns}")
 
 
@@ -167,17 +154,9 @@ def main() -> None:
     print("DATASET SUMMARY")
     print("=" * 80)
 
-    print(
-        f"Transaction table: "
-        f"{transaction.shape[0]:,} rows x "
-        f"{transaction.shape[1]:,} columns"
-    )
+    print(f"Transaction table: {transaction.shape[0]:,} rows x {transaction.shape[1]:,} columns")
 
-    print(
-        f"Identity table: "
-        f"{identity.shape[0]:,} rows x "
-        f"{identity.shape[1]:,} columns"
-    )
+    print(f"Identity table: {identity.shape[0]:,} rows x {identity.shape[1]:,} columns")
 
     print("\nAll transaction columns:")
     print(transaction.columns.tolist())
@@ -189,10 +168,7 @@ def main() -> None:
     # Feature families
     # ---------------------------------------------------------
 
-    print_feature_families(
-        transaction.columns.tolist()
-        + identity.columns.tolist()
-    )
+    print_feature_families(transaction.columns.tolist() + identity.columns.tolist())
 
     # ---------------------------------------------------------
     # Target
@@ -224,10 +200,7 @@ def main() -> None:
 
     print(f"TransactionDT min: {min_dt:,}")
     print(f"TransactionDT max: {max_dt:,}")
-    print(
-        f"Observed duration: "
-        f"{(max_dt - min_dt) / 86400:.2f} days"
-    )
+    print(f"Observed duration: {(max_dt - min_dt) / 86400:.2f} days")
 
     # ---------------------------------------------------------
     # Identity relationship
@@ -252,21 +225,11 @@ def main() -> None:
 
     orphan_identity_ids = identity_ids - transaction_ids
 
-    print(
-        f"Identity records without transaction: "
-        f"{len(orphan_identity_ids):,}"
-    )
+    print(f"Identity records without transaction: {len(orphan_identity_ids):,}")
 
-    identity_coverage = (
-        transaction["TransactionID"]
-        .isin(identity["TransactionID"])
-        .mean()
-    )
+    identity_coverage = transaction["TransactionID"].isin(identity["TransactionID"]).mean()
 
-    print(
-        f"Transactions with identity data: "
-        f"{identity_coverage:.2%}"
-    )
+    print(f"Transactions with identity data: {identity_coverage:.2%}")
 
     # ---------------------------------------------------------
     # Full column profiles

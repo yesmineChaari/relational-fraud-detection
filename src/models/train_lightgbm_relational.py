@@ -18,18 +18,19 @@ from pandas.api.types import is_float_dtype, is_integer_dtype, is_numeric_dtype
 from src.features.build_relational_features import (
     RELATION_REGISTRY,
     _feature_names,
-    _output_path as _rel_output_path,
+)
+from src.features.build_relational_features import (
     _metadata_path as _rel_metadata_path,
+)
+from src.features.build_relational_features import (
+    _output_path as _rel_output_path,
 )
 from src.models.train_lightgbm_baseline import (
     CATEGORY_MAPPINGS_PATH,
     EXPECTED_ROWS,
     EXPECTED_SPLIT_COUNTS,
     FORBIDDEN_FEATURE_COLUMNS,
-    METADATA_PATH as B0_METADATA_PATH,
-    METRICS_PATH as B0_METRICS_PATH,
     MODEL_DATASET_PATH,
-    MODEL_PATH as B0_MODEL_PATH,
     RANDOM_SEED,
     apply_category_mapping,
     assert_supported_model_dtypes,
@@ -44,6 +45,15 @@ from src.models.train_lightgbm_baseline import (
     summarize_learning_curve,
     validate_split_counts,
     write_json,
+)
+from src.models.train_lightgbm_baseline import (
+    METADATA_PATH as B0_METADATA_PATH,
+)
+from src.models.train_lightgbm_baseline import (
+    METRICS_PATH as B0_METRICS_PATH,
+)
+from src.models.train_lightgbm_baseline import (
+    MODEL_PATH as B0_MODEL_PATH,
 )
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -120,11 +130,7 @@ def file_sha256(path: Path) -> str:
 
 
 def snapshot_protected_artifacts(paths: list[Path]) -> dict[str, str]:
-    return {
-        repository_relative(p): file_sha256(p)
-        for p in paths
-        if p.exists()
-    }
+    return {repository_relative(p): file_sha256(p) for p in paths if p.exists()}
 
 
 def assert_protected_artifacts_unchanged(
@@ -134,8 +140,7 @@ def assert_protected_artifacts_unchanged(
 ) -> None:
     current = snapshot_protected_artifacts(paths)
     changed = sorted(
-        p for p in set(reference_hashes) | set(current)
-        if reference_hashes.get(p) != current.get(p)
+        p for p in set(reference_hashes) | set(current) if reference_hashes.get(p) != current.get(p)
     )
     if changed:
         raise AssertionError(f"B1 variant modified {label} artifacts: {changed}.")
@@ -178,7 +183,9 @@ def load_feature_builder_metadata(relation: str) -> dict[str, Any]:
     group_columns = RELATION_REGISTRY[relation]
     feat_names = _feature_names(relation)
     if metadata.get("relation_name") != relation:
-        raise ValueError(f"Relational feature metadata has the wrong relation name (expected {relation}).")
+        raise ValueError(
+            f"Relational feature metadata has the wrong relation name (expected {relation})."
+        )
     if metadata.get("group_columns") != group_columns:
         raise ValueError("Relational feature metadata has the wrong group definition.")
     if metadata.get("feature_names") != feat_names:
@@ -302,7 +309,9 @@ def attach_relational_features(
     return result
 
 
-def load_b1_datasets(relation: str = "card_core_addr1") -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
+def load_b1_datasets(
+    relation: str = "card_core_addr1",
+) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
     feat_names = _feature_names(relation)
     rel_path = _rel_output_path(relation)
     train_df, validation_df, dataset_summary = load_model_dataset()
@@ -316,9 +325,7 @@ def load_b1_datasets(relation: str = "card_core_addr1") -> tuple[pd.DataFrame, p
     validate_split_counts(model_index, "model_dataset.parquet B1 index")
     relational_df = pd.read_parquet(rel_path)
     if len(relational_df) != EXPECTED_ROWS:
-        raise ValueError(
-            f"Expected {EXPECTED_ROWS:,} relational rows; got {len(relational_df):,}."
-        )
+        raise ValueError(f"Expected {EXPECTED_ROWS:,} relational rows; got {len(relational_df):,}.")
     merged_index = validate_relational_merge(model_index, relational_df, feat_names)
 
     train_with_relations = attach_relational_features(train_df, merged_index, "train", feat_names)
@@ -353,7 +360,8 @@ def validate_model_columns_against_frozen_b0(
     feat_names: list[str],
 ) -> None:
     actual_b0_features = [
-        col for col in model_columns
+        col
+        for col in model_columns
         if col not in FORBIDDEN_FEATURE_COLUMNS and col not in feat_names
     ]
     if actual_b0_features != b0_features:
@@ -553,9 +561,7 @@ def build_b1_metadata(
         "validation_roc_auc": float(validation_metrics["roc_auc"]),
         "validation_ranking_metrics": validation_metrics["ranking_metrics"],
         "test_evaluated": TEST_EVALUATED,
-        "feature_builder_target_labels_used": bool(
-            feature_builder_metadata["target_labels_used"]
-        ),
+        "feature_builder_target_labels_used": bool(feature_builder_metadata["target_labels_used"]),
         "original_ieee_features_removed_for_b1": False,
         "model_path": repository_relative(model_path),
         "metrics_path": repository_relative(metrics_path),
@@ -578,9 +584,7 @@ def build_b1_metadata(
 def run_for_relation(relation: str) -> None:
     """Full B1 training pipeline for a named relation."""
     if relation not in RELATION_REGISTRY:
-        raise ValueError(
-            f"Unknown relation: {relation!r}. Supported: {sorted(RELATION_REGISTRY)}."
-        )
+        raise ValueError(f"Unknown relation: {relation!r}. Supported: {sorted(RELATION_REGISTRY)}.")
     feat_names = _feature_names(relation)
 
     (
@@ -599,9 +603,7 @@ def run_for_relation(relation: str) -> None:
     # silently replace an artifact another experiment is compared against.
     all_protected = [*B0_PROTECTED_PATHS, *B1_CARD_CORE_ADDR1_PROTECTED]
     b0_hashes_before = snapshot_protected_artifacts(all_protected)
-    if relation == "card_core_addr1" and any(
-        p.exists() for p in B1_CARD_CORE_ADDR1_PROTECTED
-    ):
+    if relation == "card_core_addr1" and any(p.exists() for p in B1_CARD_CORE_ADDR1_PROTECTED):
         raise FileExistsError(
             "B1-card_core_addr1 is frozen and archived as the original relational "
             "experiment; delete its artifacts deliberately before regenerating them."
@@ -687,9 +689,7 @@ def run_for_relation(relation: str) -> None:
         best_iteration=int(model.best_iteration_),
         maximum_estimators=MAX_ESTIMATORS,
     )
-    validation_scores = model.predict_proba(
-        X_validation, num_iteration=model.best_iteration_
-    )[:, 1]
+    validation_scores = model.predict_proba(X_validation, num_iteration=model.best_iteration_)[:, 1]
     if len(validation_scores) != EXPECTED_SPLIT_COUNTS[EVALUATION_SPLIT]:
         raise AssertionError("B1 validation prediction count is incorrect.")
     if not np.isfinite(validation_scores).all():
@@ -757,16 +757,25 @@ def run_for_relation(relation: str) -> None:
     assert_protected_artifacts_unchanged(b0_hashes_before, all_protected, label="frozen B0/B1")
 
     expected_artifacts = [
-        model_path, metrics_path, metadata_path, feat_imp_path,
-        val_pred_path, learning_curve_path, comparison_path,
+        model_path,
+        metrics_path,
+        metadata_path,
+        feat_imp_path,
+        val_pred_path,
+        learning_curve_path,
+        comparison_path,
     ]
     missing = [str(p) for p in expected_artifacts if not p.exists()]
     if missing:
         raise OSError(f"B1 artifacts were not created: {missing}.")
 
     print(f"[{relation}] Best iteration: {model.best_iteration_:,}")
-    print(f"[{relation}] Actual stopping iteration: {learning_curve_summary['actual_stopping_iteration']:,}")
-    print(f"[{relation}] Early stopping triggered: {'YES' if learning_curve_summary['early_stopping_triggered'] else 'NO'}")
+    print(
+        f"[{relation}] Actual stopping iteration: {learning_curve_summary['actual_stopping_iteration']:,}"
+    )
+    print(
+        f"[{relation}] Early stopping triggered: {'YES' if learning_curve_summary['early_stopping_triggered'] else 'NO'}"
+    )
     print(f"[{relation}] Validation PR-AUC:  {metrics['pr_auc']:.12f}")
     print(f"[{relation}] Validation ROC-AUC: {metrics['roc_auc']:.12f}")
     print(f"[{relation}] Model saved: {model_path}")

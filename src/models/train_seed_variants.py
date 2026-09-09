@@ -34,7 +34,6 @@ from __future__ import annotations
 
 import argparse
 import gc
-import json
 import platform
 from datetime import datetime, timezone
 from pathlib import Path
@@ -50,9 +49,6 @@ from src.features.build_relational_features import _feature_names
 from src.models.train_lightgbm_baseline import (
     CATEGORY_MAPPINGS_PATH,
     EXPECTED_SPLIT_COUNTS,
-    METADATA_PATH as B0_METADATA_PATH,
-    METRICS_PATH as B0_METRICS_PATH,
-    MODEL_PATH as B0_MODEL_PATH,
     RANDOM_SEED,
     assert_supported_model_dtypes,
     build_feature_importance,
@@ -65,6 +61,15 @@ from src.models.train_lightgbm_baseline import (
     repository_relative,
     summarize_learning_curve,
     write_json,
+)
+from src.models.train_lightgbm_baseline import (
+    METADATA_PATH as B0_METADATA_PATH,
+)
+from src.models.train_lightgbm_baseline import (
+    METRICS_PATH as B0_METRICS_PATH,
+)
+from src.models.train_lightgbm_baseline import (
+    MODEL_PATH as B0_MODEL_PATH,
 )
 from src.models.train_lightgbm_relational import (
     EARLY_STOPPING_ROUNDS,
@@ -151,20 +156,14 @@ def load_configuration_data(
     if config == "b0":
         train_df, validation_df, _ = load_model_dataset()
         validate_model_columns_against_frozen_b0(list(train_df.columns), b0_features, [])
-        validate_model_columns_against_frozen_b0(
-            list(validation_df.columns), b0_features, []
-        )
+        validate_model_columns_against_frozen_b0(list(validation_df.columns), b0_features, [])
         return train_df, validation_df, b0_features
 
     relation = config.removeprefix("b1_")
     feat_names = _feature_names(relation)
     train_df, validation_df, _ = load_b1_datasets(relation)
-    validate_model_columns_against_frozen_b0(
-        list(train_df.columns), b0_features, feat_names
-    )
-    validate_model_columns_against_frozen_b0(
-        list(validation_df.columns), b0_features, feat_names
-    )
+    validate_model_columns_against_frozen_b0(list(train_df.columns), b0_features, feat_names)
+    validate_model_columns_against_frozen_b0(list(validation_df.columns), b0_features, feat_names)
     return train_df, validation_df, build_b1_feature_manifest(b0_features, feat_names)
 
 
@@ -252,9 +251,7 @@ def train_seed_variant(
     if identify_categorical_columns(validation_df[feature_columns]) != categorical_columns:
         raise TypeError(f"[{label}] Validation categorical predictors differ from frozen B0.")
 
-    validation_metadata = validation_df[
-        ["TransactionID", "TransactionDT", "isFraud"]
-    ].copy()
+    validation_metadata = validation_df[["TransactionID", "TransactionDT", "isFraud"]].copy()
     y_train = train_df["isFraud"].astype("int8").copy()
     y_validation = validation_df["isFraud"].astype("int8").copy()
 
@@ -272,9 +269,7 @@ def train_seed_variant(
     # only one copy is ever resident. This is a memory change only -- the
     # values, their order and their dtypes are identical either way, which the
     # seed-42 reproduction check at the end of this function verifies.
-    X_train = pd.DataFrame(
-        {column: train_df.pop(column) for column in feature_columns}, copy=False
-    )
+    X_train = pd.DataFrame({column: train_df.pop(column) for column in feature_columns}, copy=False)
     X_validation = pd.DataFrame(
         {column: validation_df.pop(column) for column in feature_columns}, copy=False
     )
@@ -296,9 +291,7 @@ def train_seed_variant(
     print(f"[{label}] Predictors: {len(feature_columns):,}  seed: {seed}")
     evaluation_results: dict[str, dict[str, list[float]]] = {}
     callbacks = [
-        lightgbm.early_stopping(
-            stopping_rounds=EARLY_STOPPING_ROUNDS, first_metric_only=True
-        ),
+        lightgbm.early_stopping(stopping_rounds=EARLY_STOPPING_ROUNDS, first_metric_only=True),
         lightgbm.record_evaluation(evaluation_results),
         lightgbm.log_evaluation(period=LOG_EVALUATION_PERIOD),
     ]
@@ -324,9 +317,7 @@ def train_seed_variant(
         best_iteration=int(model.best_iteration_),
         maximum_estimators=n_estimators,
     )
-    validation_scores = model.predict_proba(
-        X_validation, num_iteration=model.best_iteration_
-    )[:, 1]
+    validation_scores = model.predict_proba(X_validation, num_iteration=model.best_iteration_)[:, 1]
     if len(validation_scores) != EXPECTED_SPLIT_COUNTS[EVALUATION_SPLIT]:
         raise AssertionError(f"[{label}] Validation prediction count is incorrect.")
     if not np.isfinite(validation_scores).all():
@@ -342,17 +333,13 @@ def train_seed_variant(
             "weighting": "weighted",
             "scale_pos_weight": float(scale_pos_weight),
             "maximum_estimators": int(n_estimators),
-            "actual_stopping_iteration": int(
-                learning_curve_summary["actual_stopping_iteration"]
-            ),
+            "actual_stopping_iteration": int(learning_curve_summary["actual_stopping_iteration"]),
             "best_iteration": int(model.best_iteration_),
             "best_validation_average_precision": float(
                 learning_curve_summary["best_validation_average_precision"]
             ),
             "early_stopping_rounds": EARLY_STOPPING_ROUNDS,
-            "early_stopping_triggered": bool(
-                learning_curve_summary["early_stopping_triggered"]
-            ),
+            "early_stopping_triggered": bool(learning_curve_summary["early_stopping_triggered"]),
             "estimator_cap_reached": bool(learning_curve_summary["estimator_cap_reached"]),
             "frozen_run_reproduction": reproduction,
         }
@@ -412,9 +399,7 @@ def train_seed_variant(
         "generated_at_utc": finished_at.isoformat(),
     }
     write_json(paths["metadata"], metadata)
-    assert_protected_artifacts_unchanged(
-        protected_before, PROTECTED_PATHS, label="frozen B0/B1"
-    )
+    assert_protected_artifacts_unchanged(protected_before, PROTECTED_PATHS, label="frozen B0/B1")
 
     print(
         f"[{label}] PR-AUC {metrics['pr_auc']:.12f}  "

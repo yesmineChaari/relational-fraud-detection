@@ -51,8 +51,6 @@ from src.graph.temporal_contract import (
 from src.models.train_lightgbm_baseline import (
     CATEGORY_MAPPINGS_PATH,
     EXPECTED_ROWS,
-    EXPECTED_SPLIT_COUNTS,
-    METADATA_PATH as B0_METADATA_PATH,
     MODEL_DATASET_PATH,
     apply_category_mapping,
     assert_supported_model_dtypes,
@@ -61,7 +59,9 @@ from src.models.train_lightgbm_baseline import (
     validate_split_counts,
     write_json,
 )
-
+from src.models.train_lightgbm_baseline import (
+    METADATA_PATH as B0_METADATA_PATH,
+)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 NODES_PATH = ROOT_DIR / "data" / "processed" / "graph_card1_nodes.parquet"
@@ -69,12 +69,8 @@ ENTITY_EDGES_PATH = ROOT_DIR / "data" / "processed" / "graph_card1_entity_edges.
 REPORT_DIR = ROOT_DIR / "reports" / "graph"
 METADATA_PATH = REPORT_DIR / "card1_transaction_graph_metadata.json"
 
-AUDIT_ENTITY_DIAGNOSTICS_PATH = (
-    ROOT_DIR / "reports" / "relational_audit" / "entity_diagnostics.csv"
-)
-AUDIT_GRAPH_DIAGNOSTICS_PATH = (
-    ROOT_DIR / "reports" / "relational_audit" / "graph_diagnostics.csv"
-)
+AUDIT_ENTITY_DIAGNOSTICS_PATH = ROOT_DIR / "reports" / "relational_audit" / "entity_diagnostics.csv"
+AUDIT_GRAPH_DIAGNOSTICS_PATH = ROOT_DIR / "reports" / "relational_audit" / "graph_diagnostics.csv"
 
 STORAGE_RATIONALE = (
     "A full pairwise clique per card1 entity is O(entity_size^2); the "
@@ -233,7 +229,9 @@ def reconcile_with_relational_audit(edges_df: pd.DataFrame) -> dict[str, Any]:
     train_edges = edges_df.loc[edges_df["split"] == "train"]
     train_diagnostics = compute_entity_diagnostics(train_edges)
 
-    entity_audit = pd.read_csv(AUDIT_ENTITY_DIAGNOSTICS_PATH).set_index("relation").loc[RELATION_NAME]
+    entity_audit = (
+        pd.read_csv(AUDIT_ENTITY_DIAGNOSTICS_PATH).set_index("relation").loc[RELATION_NAME]
+    )
     graph_audit = pd.read_csv(AUDIT_GRAPH_DIAGNOSTICS_PATH).set_index("relation").loc[RELATION_NAME]
 
     checks = {
@@ -246,7 +244,10 @@ def reconcile_with_relational_audit(edges_df: pd.DataFrame) -> dict[str, Any]:
             train_diagnostics["group_size_median"],
             float(entity_audit["group_size_median"]),
         ),
-        "group_size_max": (train_diagnostics["group_size_max"], int(entity_audit["group_size_max"])),
+        "group_size_max": (
+            train_diagnostics["group_size_max"],
+            int(entity_audit["group_size_max"]),
+        ),
         "connected_components": (
             train_diagnostics["connected_components"],
             int(graph_audit["connected_components"]),
@@ -267,7 +268,10 @@ def reconcile_with_relational_audit(edges_df: pd.DataFrame) -> dict[str, Any]:
             f"Train-only card1 entity structure does not reconcile with the "
             f"relational audit reports: {mismatched}."
         )
-    return {"reconciled_against_relational_audit": True, "train_only_diagnostics": train_diagnostics}
+    return {
+        "reconciled_against_relational_audit": True,
+        "train_only_diagnostics": train_diagnostics,
+    }
 
 
 def build_metadata(
@@ -281,7 +285,8 @@ def build_metadata(
     reconciliation: dict[str, Any],
 ) -> dict[str, Any]:
     split_row_counts = {
-        str(name): int(count) for name, count in nodes_df["split"].astype("string").value_counts().items()
+        str(name): int(count)
+        for name, count in nodes_df["split"].astype("string").value_counts().items()
     }
     return {
         "relation_name": RELATION_NAME,
@@ -313,7 +318,9 @@ def build_metadata(
         "target_labels_used": False,
         "isFraud_present_in_node_features": False,
         "full_dataset_entity_diagnostics": full_diagnostics,
-        "reconciled_against_relational_audit": reconciliation["reconciled_against_relational_audit"],
+        "reconciled_against_relational_audit": reconciliation[
+            "reconciled_against_relational_audit"
+        ],
         "train_only_entity_diagnostics": reconciliation["train_only_diagnostics"],
         "nodes_path": repository_relative(NODES_PATH),
         "entity_edges_path": repository_relative(ENTITY_EDGES_PATH),
@@ -380,7 +387,9 @@ def build_and_save_transaction_graph() -> None:
 
     print(f"[{RELATION_NAME}] Nodes: {len(nodes_df):,}")
     print(f"[{RELATION_NAME}] Entities: {full_diagnostics['entity_count']:,}")
-    print(f"[{RELATION_NAME}] Largest entity share: {full_diagnostics['largest_component_pct']:.4f}%")
+    print(
+        f"[{RELATION_NAME}] Largest entity share: {full_diagnostics['largest_component_pct']:.4f}%"
+    )
     print(f"[{RELATION_NAME}] Reconciled against relational audit: YES")
     print(f"[{RELATION_NAME}] Nodes saved: {NODES_PATH}")
     print(f"[{RELATION_NAME}] Entity edges saved: {ENTITY_EDGES_PATH}")

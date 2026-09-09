@@ -6,7 +6,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 INPUT_PATH = ROOT_DIR / "data" / "raw" / "train_transaction.csv"
@@ -67,18 +66,14 @@ def build_split_summary(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
 
-    summary["fraction_of_dataset"] = (
-        summary["n_transactions"] / len(df)
-    )
+    summary["fraction_of_dataset"] = summary["n_transactions"] / len(df)
 
     return summary
 
 
 def main() -> None:
     if not INPUT_PATH.exists():
-        raise FileNotFoundError(
-            f"Transaction file not found: {INPUT_PATH}"
-        )
+        raise FileNotFoundError(f"Transaction file not found: {INPUT_PATH}")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -113,9 +108,7 @@ def main() -> None:
     unexpected_labels = set(df["isFraud"].unique()) - {0, 1}
 
     if unexpected_labels:
-        raise ValueError(
-            f"Unexpected isFraud labels: {unexpected_labels}"
-        )
+        raise ValueError(f"Unexpected isFraud labels: {unexpected_labels}")
 
     # ---------------------------------------------------------
     # Temporal ordering
@@ -132,9 +125,7 @@ def main() -> None:
 
     nominal_train_end = int(n * TRAIN_RATIO)
 
-    nominal_validation_end = int(
-        n * (TRAIN_RATIO + VALIDATION_RATIO)
-    )
+    nominal_validation_end = int(n * (TRAIN_RATIO + VALIDATION_RATIO))
 
     times = df["TransactionDT"].to_numpy()
 
@@ -205,14 +196,10 @@ def main() -> None:
     ].min()
 
     if not train_max < validation_min:
-        raise AssertionError(
-            "Train and validation overlap in TransactionDT."
-        )
+        raise AssertionError("Train and validation overlap in TransactionDT.")
 
     if not validation_max < test_min:
-        raise AssertionError(
-            "Validation and test overlap in TransactionDT."
-        )
+        raise AssertionError("Validation and test overlap in TransactionDT.")
 
     # ---------------------------------------------------------
     # Save authoritative split manifest

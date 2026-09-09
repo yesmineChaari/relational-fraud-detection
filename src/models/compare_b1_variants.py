@@ -108,12 +108,8 @@ def relational_feature_ranks(feat_imp_path: Path | None, relation: str) -> dict[
 
     df = pd.read_csv(feat_imp_path)
     df = df.sort_values("importance_gain", ascending=False).reset_index(drop=True)
-    df["rank_gain"] = (
-        df["importance_gain"].rank(ascending=False, method="min").astype(int)
-    )
-    df["rank_split"] = (
-        df["importance_split"].rank(ascending=False, method="min").astype(int)
-    )
+    df["rank_gain"] = df["importance_gain"].rank(ascending=False, method="min").astype(int)
+    df["rank_split"] = df["importance_split"].rank(ascending=False, method="min").astype(int)
     feat_names = [
         f"{relation}_prior_count",
         f"{relation}_prior_count_24h",
@@ -182,9 +178,7 @@ def classify_outcome(
     new_variants = [r for r in comparison_rows if r["role"] == "new"]
 
     any_beats_b0 = any(r["validation_pr_auc"] > b0_pr_auc for r in non_b0)
-    all_worse_than_b0 = bool(non_b0) and all(
-        r["validation_pr_auc"] < b0_pr_auc for r in non_b0
-    )
+    all_worse_than_b0 = bool(non_b0) and all(r["validation_pr_auc"] < b0_pr_auc for r in non_b0)
     all_beat_original_b1 = (
         bool(new_variants)
         and original_b1_pr_auc is not None
@@ -210,9 +204,7 @@ def classify_outcome(
             "GNN relational inductive bias (G1) is strictly required."
         )
 
-    best_new = (
-        max(new_variants, key=lambda r: r["validation_pr_auc"]) if new_variants else None
-    )
+    best_new = max(new_variants, key=lambda r: r["validation_pr_auc"]) if new_variants else None
     return {
         "outcome_code": outcome_code,
         "scientific_conclusion": conclusion,
@@ -240,18 +232,14 @@ def main() -> None:
             continue
         loaded.append((spec, metrics))
 
-    baseline = next(
-        (metrics for spec, metrics in loaded if spec["role"] == "baseline"), None
-    )
+    baseline = next((metrics for spec, metrics in loaded if spec["role"] == "baseline"), None)
     if baseline is None:
         raise FileNotFoundError(
             "The frozen B0 metrics are required to compute deltas; none were loaded."
         )
     b0_pr_auc = float(baseline["pr_auc"])
     b0_roc_auc = float(baseline["roc_auc"])
-    original_b1 = next(
-        (metrics for spec, metrics in loaded if spec["role"] == "original"), None
-    )
+    original_b1 = next((metrics for spec, metrics in loaded if spec["role"] == "original"), None)
     original_b1_pr_auc = float(original_b1["pr_auc"]) if original_b1 else None
 
     print(f"  B0 reference: PR-AUC={b0_pr_auc:.12f}  ROC-AUC={b0_roc_auc:.12f}")

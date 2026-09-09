@@ -60,18 +60,14 @@ def paired_row(
         "delta_roc_auc": roc_delta,
         "best_iteration_ratio": ratio,
         "early_stopping_clean": bool(ratio <= MAX_BEST_ITERATION_RATIO),
-        "longer_trained": (
-            "variant" if variant_iterations > reference_iterations else "reference"
-        ),
+        "longer_trained": ("variant" if variant_iterations > reference_iterations else "reference"),
     }
 
 
 def write_metrics(path: Path, pr_auc: float, roc_auc: float, best_iteration: int) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
-        json.dump(
-            {"pr_auc": pr_auc, "roc_auc": roc_auc, "best_iteration": best_iteration}, handle
-        )
+        json.dump({"pr_auc": pr_auc, "roc_auc": roc_auc, "best_iteration": best_iteration}, handle)
 
 
 class ReferenceResolutionTests(unittest.TestCase):
@@ -146,9 +142,7 @@ class StratificationTests(unittest.TestCase):
 
     def test_roc_auc_is_reported_across_every_seed(self) -> None:
         """ROC-AUC is not the stopping metric, so contamination does not apply to it."""
-        table = pd.DataFrame(
-            [paired_row(42, 0.005), paired_row(707, 0.015, 8_115, 3_644)]
-        )
+        table = pd.DataFrame([paired_row(42, 0.005), paired_row(707, 0.015, 8_115, 3_644)])
         result = stratify(table)
         self.assertEqual(result["roc_auc_delta_all_seeds"]["n"], 2)
         self.assertTrue(result["roc_auc_is_not_the_stopping_metric"])
@@ -190,9 +184,7 @@ class ClassificationTests(unittest.TestCase):
         self.assertEqual(outcome["outcome_code"], OUTCOME_SIGN_STABLE)
 
     def test_a_single_clean_seed_cannot_support_a_verdict(self) -> None:
-        table = pd.DataFrame(
-            [paired_row(42, 0.005), paired_row(707, 0.015, 8_115, 3_644)]
-        )
+        table = pd.DataFrame([paired_row(42, 0.005), paired_row(707, 0.015, 8_115, 3_644)])
         outcome = classify(table, stratify(table))
         self.assertEqual(outcome["outcome_code"], OUTCOME_PANEL_TOO_SMALL)
 
@@ -228,15 +220,14 @@ class PairedTableTests(unittest.TestCase):
             # Seed 202 has a variant run but no reference yet.
             write_metrics(variant_dir / "seed202.json", 0.6578, 0.9248, 8_486)
 
-            with patch(
-                "src.models.summarize_ablation_seed_panel.resolve_run_paths", fake_variant
-            ), patch(
-                "src.models.summarize_ablation_seed_panel.resolve_reference_paths",
-                fake_reference,
+            with (
+                patch("src.models.summarize_ablation_seed_panel.resolve_run_paths", fake_variant),
+                patch(
+                    "src.models.summarize_ablation_seed_panel.resolve_reference_paths",
+                    fake_reference,
+                ),
             ):
-                self.assertEqual(
-                    discover_paired_seeds(LEAVE_ONE_OUT, VARIANT_FEATURE), [42]
-                )
+                self.assertEqual(discover_paired_seeds(LEAVE_ONE_OUT, VARIANT_FEATURE), [42])
 
     def test_a_panel_with_no_paired_seed_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -245,12 +236,15 @@ class PairedTableTests(unittest.TestCase):
             def fake(mode, feature=None, seed=RANDOM_SEED):
                 return {"metrics": missing / "absent.json"}
 
-            with patch(
-                "src.models.summarize_ablation_seed_panel.resolve_run_paths",
-                lambda mode, feature, seed=RANDOM_SEED: fake(mode, feature, seed),
-            ), patch(
-                "src.models.summarize_ablation_seed_panel.resolve_reference_paths",
-                lambda mode, seed: fake(mode, None, seed),
+            with (
+                patch(
+                    "src.models.summarize_ablation_seed_panel.resolve_run_paths",
+                    lambda mode, feature, seed=RANDOM_SEED: fake(mode, feature, seed),
+                ),
+                patch(
+                    "src.models.summarize_ablation_seed_panel.resolve_reference_paths",
+                    lambda mode, seed: fake(mode, None, seed),
+                ),
             ):
                 with self.assertRaises(FileNotFoundError):
                     discover_paired_seeds(LEAVE_ONE_OUT, VARIANT_FEATURE)
@@ -268,11 +262,12 @@ class PairedTableTests(unittest.TestCase):
             write_metrics(root / "v42.json", 0.6610, 0.9251, 8_219)
             write_metrics(root / "r42.json", 0.6555, 0.9248, 6_087)
 
-            with patch(
-                "src.models.summarize_ablation_seed_panel.resolve_run_paths", fake_variant
-            ), patch(
-                "src.models.summarize_ablation_seed_panel.resolve_reference_paths",
-                fake_reference,
+            with (
+                patch("src.models.summarize_ablation_seed_panel.resolve_run_paths", fake_variant),
+                patch(
+                    "src.models.summarize_ablation_seed_panel.resolve_reference_paths",
+                    fake_reference,
+                ),
             ):
                 table = build_paired_table(LEAVE_ONE_OUT, VARIANT_FEATURE, [42])
             self.assertAlmostEqual(table.loc[0, "delta_pr_auc"], 0.0055, places=6)

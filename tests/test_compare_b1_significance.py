@@ -18,9 +18,7 @@ def _write_predictions(path: Path, n: int, seed: int, signal: float) -> None:
     rng = np.random.default_rng(seed)
     labels = (rng.random(n) < 0.1).astype(int)
     scores = labels.astype(np.float64) * signal + rng.random(n)
-    df = pd.DataFrame(
-        {"TransactionID": range(n), "isFraud": labels, "prediction": scores}
-    )
+    df = pd.DataFrame({"TransactionID": range(n), "isFraud": labels, "prediction": scores})
     df.to_parquet(path, index=False)
 
 
@@ -36,25 +34,28 @@ class BuildSignificanceTests(unittest.TestCase):
             _write_predictions(card1_path, n, seed=1, signal=0.8)
             _write_predictions(card1_card2_path, n, seed=1, signal=0.6)
 
-            with patch.dict(significance.EXPECTED_SPLIT_COUNTS, {"validation": n}), patch(
-                "src.models.compare_b1_significance.COMPARISONS",
-                [
-                    ("b1_card1_vs_b0", "b1_card1", card1_path, "b0", b0_path),
-                    (
-                        "b1_card1_card2_vs_b0",
-                        "b1_card1_card2",
-                        card1_card2_path,
-                        "b0",
-                        b0_path,
-                    ),
-                    (
-                        "b1_card1_vs_b1_card1_card2",
-                        "b1_card1",
-                        card1_path,
-                        "b1_card1_card2",
-                        card1_card2_path,
-                    ),
-                ],
+            with (
+                patch.dict(significance.EXPECTED_SPLIT_COUNTS, {"validation": n}),
+                patch(
+                    "src.models.compare_b1_significance.COMPARISONS",
+                    [
+                        ("b1_card1_vs_b0", "b1_card1", card1_path, "b0", b0_path),
+                        (
+                            "b1_card1_card2_vs_b0",
+                            "b1_card1_card2",
+                            card1_card2_path,
+                            "b0",
+                            b0_path,
+                        ),
+                        (
+                            "b1_card1_vs_b1_card1_card2",
+                            "b1_card1",
+                            card1_path,
+                            "b1_card1_card2",
+                            card1_card2_path,
+                        ),
+                    ],
+                ),
             ):
                 result = build_significance(n_resamples=100)
 

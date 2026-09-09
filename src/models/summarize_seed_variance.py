@@ -43,9 +43,7 @@ RUNS_CSV = REPORT_DIR / "seed_variance_runs.csv"
 SUMMARY_JSON = REPORT_DIR / "seed_variance_summary.json"
 
 FROZEN_B0_PREDICTIONS = ROOT_DIR / "reports" / "baseline" / "validation_predictions.parquet"
-FROZEN_B1_PREDICTIONS = (
-    ROOT_DIR / "reports" / "b1" / "card1" / "validation_predictions.parquet"
-)
+FROZEN_B1_PREDICTIONS = ROOT_DIR / "reports" / "b1" / "card1" / "validation_predictions.parquet"
 
 # The comparison configuration whose delta the project's headline claim rests on.
 REFERENCE_CONFIG = "b0"
@@ -69,9 +67,7 @@ def discover_runs() -> pd.DataFrame:
             with metrics_path.open(encoding="utf-8") as handle:
                 metrics = json.load(handle)
             if metrics.get("test_evaluated") is not False:
-                raise ValueError(
-                    f"{metrics_path} violates final-test discipline."
-                )
+                raise ValueError(f"{metrics_path} violates final-test discipline.")
             if metrics.get("configuration") != config:
                 raise ValueError(
                     f"{metrics_path} reports configuration "
@@ -121,9 +117,7 @@ def summarize_configuration(runs: pd.DataFrame, config: str) -> dict[str, Any]:
     summary: dict[str, Any] = {
         "seeds": [int(s) for s in subset["seed"]],
         "estimator_cap": int(subset["maximum_estimators"].max()),
-        "early_stopping_triggered_in_any_run": bool(
-            subset["early_stopping_triggered"].any()
-        ),
+        "early_stopping_triggered_in_any_run": bool(subset["early_stopping_triggered"].any()),
         "estimator_cap_reached_in_all_runs": bool(subset["estimator_cap_reached"].all()),
         "best_iteration_min": int(subset["best_iteration"].min()),
         "best_iteration_max": int(subset["best_iteration"].max()),
@@ -148,6 +142,7 @@ def paired_seed_deltas(runs: pd.DataFrame) -> pd.DataFrame:
             f"No seed has both {CANDIDATE_CONFIG} and {REFERENCE_CONFIG} runs; "
             "the paired delta cannot be computed."
         )
+
     def early_stopping_status(seed: int) -> str:
         reference_stopped = bool(reference.loc[seed, "early_stopping_triggered"])
         candidate_stopped = bool(candidate.loc[seed, "early_stopping_triggered"])
@@ -173,12 +168,8 @@ def paired_seed_deltas(runs: pd.DataFrame) -> pd.DataFrame:
                 "delta_roc_auc": float(
                     candidate.loc[seed, "roc_auc"] - reference.loc[seed, "roc_auc"]
                 ),
-                f"{REFERENCE_CONFIG}_best_iteration": int(
-                    reference.loc[seed, "best_iteration"]
-                ),
-                f"{CANDIDATE_CONFIG}_best_iteration": int(
-                    candidate.loc[seed, "best_iteration"]
-                ),
+                f"{REFERENCE_CONFIG}_best_iteration": int(reference.loc[seed, "best_iteration"]),
+                f"{CANDIDATE_CONFIG}_best_iteration": int(candidate.loc[seed, "best_iteration"]),
                 "early_stopping_status": early_stopping_status(seed),
             }
             for seed in shared
@@ -212,8 +203,7 @@ def stratify_by_early_stopping(deltas: pd.DataFrame) -> dict[str, Any]:
         "clean_seeds": [int(s) for s in clean["seed"]],
         "contaminated_seeds": [int(s) for s in contaminated["seed"]],
         "which_stopped_per_seed": {
-            int(row.seed): row.early_stopping_status
-            for row in deltas.itertuples(index=False)
+            int(row.seed): row.early_stopping_status for row in deltas.itertuples(index=False)
         },
     }
     if len(clean) >= 2:
@@ -222,9 +212,7 @@ def stratify_by_early_stopping(deltas: pd.DataFrame) -> dict[str, Any]:
             (clean["delta_pr_auc"] > 0).all() or (clean["delta_pr_auc"] < 0).all()
         )
     if len(contaminated) >= 2:
-        result["contaminated_delta_pr_auc"] = spread(
-            contaminated["delta_pr_auc"].to_numpy()
-        )
+        result["contaminated_delta_pr_auc"] = spread(contaminated["delta_pr_auc"].to_numpy())
 
     # ROC-AUC is not the early-stopping criterion, so it is not distorted by the
     # stopping point and can be read across every seed.
@@ -247,15 +235,9 @@ def load_frozen_bootstrap() -> dict[str, Any]:
         if not path.exists():
             return {"available": False, "reason": f"Missing frozen predictions: {path}"}
 
-    b0 = pd.read_parquet(
-        FROZEN_B0_PREDICTIONS, columns=["TransactionID", "isFraud", "prediction"]
-    )
-    b1 = pd.read_parquet(
-        FROZEN_B1_PREDICTIONS, columns=["TransactionID", "isFraud", "prediction"]
-    )
-    merged = b0.merge(
-        b1, on="TransactionID", suffixes=("_b0", "_b1"), validate="one_to_one"
-    )
+    b0 = pd.read_parquet(FROZEN_B0_PREDICTIONS, columns=["TransactionID", "isFraud", "prediction"])
+    b1 = pd.read_parquet(FROZEN_B1_PREDICTIONS, columns=["TransactionID", "isFraud", "prediction"])
+    merged = b0.merge(b1, on="TransactionID", suffixes=("_b0", "_b1"), validate="one_to_one")
     if len(merged) != len(b0) or len(merged) != len(b1):
         raise AssertionError("Frozen B0 and B1 validation predictions do not align.")
     if not merged["isFraud_b0"].equals(merged["isFraud_b1"]):
@@ -290,9 +272,7 @@ def build_interpretation(
         "paired_delta_positive_in_every_seed": all_positive,
         "seed_std_of_paired_delta": delta_std,
         "mean_paired_delta": delta_mean,
-        "mean_delta_over_seed_std": (
-            float(delta_mean / delta_std) if delta_std > 0 else None
-        ),
+        "mean_delta_over_seed_std": (float(delta_mean / delta_std) if delta_std > 0 else None),
     }
 
     if bootstrap.get("available"):
@@ -314,10 +294,7 @@ def build_interpretation(
     clean_sign_stable = (stratification or {}).get("clean_delta_sign_stable", False)
     roc_sign_stable = (stratification or {}).get("roc_auc_delta_sign_stable", False)
     confounded = bool(
-        not sign_stable
-        and clean is not None
-        and clean_sign_stable
-        and clean["std"] < delta_std
+        not sign_stable and clean is not None and clean_sign_stable and clean["std"] < delta_std
     )
     if stratification is not None:
         interpretation["early_stopping_confound_explains_instability"] = confounded
@@ -404,9 +381,7 @@ def build_summary(
     stratification = stratify_by_early_stopping(deltas)
 
     expected_seeds = {int(s) for s in runs["seed"]}
-    complete = all(
-        set(summary["seeds"]) == expected_seeds for summary in configurations.values()
-    )
+    complete = all(set(summary["seeds"]) == expected_seeds for summary in configurations.values())
 
     return {
         "report_name": "Seed variance across training runs",
@@ -431,9 +406,7 @@ def build_summary(
         "paired_delta_roc_auc_spread": delta_spread_roc,
         "frozen_paired_bootstrap": bootstrap,
         "early_stopping_stratification": stratification,
-        "interpretation": build_interpretation(
-            delta_spread, deltas, bootstrap, stratification
-        ),
+        "interpretation": build_interpretation(delta_spread, deltas, bootstrap, stratification),
         "runs_table_path": "reports/seed_variance/seed_variance_runs.csv",
         "versions": {"numpy": np.__version__, "pandas": pd.__version__},
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),

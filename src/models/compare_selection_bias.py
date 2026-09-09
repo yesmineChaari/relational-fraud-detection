@@ -143,9 +143,7 @@ def load_noise_floor() -> tuple[float, str]:
         payload = payload[key]
     if not isinstance(payload, (int, float)) or float(payload) <= 0:
         raise ValueError(f"Noise floor must be a positive number; got {payload!r}.")
-    return float(payload), str(
-        SEED_VARIANCE_SUMMARY_PATH.relative_to(ROOT_DIR).as_posix()
-    )
+    return float(payload), str(SEED_VARIANCE_SUMMARY_PATH.relative_to(ROOT_DIR).as_posix())
 
 
 def build_registry() -> list[dict[str, Any]]:
@@ -196,10 +194,7 @@ def build_registry() -> list[dict[str, Any]]:
                 "comparison": f"{SEED_PANEL_VARIANT}_vs_b1_card1_seed{seed}",
                 "published_delta": None,
                 "reference_dir": (
-                    CONVERGENCE_DIR
-                    / "b1_card1"
-                    / "stop_average_precision"
-                    / f"cap15000_seed{seed}"
+                    CONVERGENCE_DIR / "b1_card1" / "stop_average_precision" / f"cap15000_seed{seed}"
                 ),
                 "variant_dir": ABLATION_DIR / SEED_PANEL_VARIANT / f"cap15000_seed{seed}",
             }
@@ -250,8 +245,7 @@ def summarize(table: pd.DataFrame, noise_floor: float, floor_source: str) -> dic
     counts = table["classification"].value_counts().to_dict()
     exposed = table[table["classification"] != UNEXPOSED]
     off_metric_disagrees = table[
-        (np.sign(table["delta_argmax"]) > 0)
-        & (np.sign(table["off_metric_delta_at_selection"]) < 0)
+        (np.sign(table["delta_argmax"]) > 0) & (np.sign(table["off_metric_delta_at_selection"]) < 0)
     ]
     return {
         "report_name": "Validation-argmax selection-bias screen",
@@ -272,13 +266,9 @@ def summarize(table: pd.DataFrame, noise_floor: float, floor_source: str) -> dic
         ),
         "exposed_comparisons": sorted(exposed["comparison"]),
         "direction_in_doubt_comparisons": sorted(
-            table.loc[
-                table["classification"] == EXPOSED_DIRECTION_IN_DOUBT, "comparison"
-            ]
+            table.loc[table["classification"] == EXPOSED_DIRECTION_IN_DOUBT, "comparison"]
         ),
-        "off_metric_contradicts_stopping_metric": sorted(
-            off_metric_disagrees["comparison"]
-        ),
+        "off_metric_contradicts_stopping_metric": sorted(off_metric_disagrees["comparison"]),
         "round_gap_spread": {
             "min": int(table["absolute_round_gap"].min()),
             "max": int(table["absolute_round_gap"].max()),
@@ -287,9 +277,7 @@ def summarize(table: pd.DataFrame, noise_floor: float, floor_source: str) -> dic
         "correlation_round_gap_vs_argmax_minus_matched": float(
             np.corrcoef(table["round_gap"], table["argmax_minus_matched"])[0, 1]
         ),
-        "comparison_table_path": str(
-            COMPARISON_CSV.relative_to(ROOT_DIR).as_posix()
-        ),
+        "comparison_table_path": str(COMPARISON_CSV.relative_to(ROOT_DIR).as_posix()),
         "test_evaluated": False,
         "versions": {"numpy": np.__version__, "pandas": pd.__version__},
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),

@@ -8,6 +8,8 @@ import pandas as pd
 
 from src.features.build_relational_features import (
     OUTPUT_COLUMNS as RELATIONAL_OUTPUT_COLUMNS,
+)
+from src.features.build_relational_features import (
     RELATIONAL_FEATURES,
 )
 from src.models.train_lightgbm_baseline import (
@@ -60,9 +62,7 @@ class RelationalMergeTests(unittest.TestCase):
     def test_one_to_one_merge_preserves_model_order_and_splits(self) -> None:
         relational = make_relational_table([3, 1, 2])
 
-        merged = validate_relational_merge(
-            self.model_index, relational, RELATIONAL_FEATURES
-        )
+        merged = validate_relational_merge(self.model_index, relational, RELATIONAL_FEATURES)
 
         self.assertEqual(merged["TransactionID"].tolist(), [1, 2, 3])
         self.assertEqual(merged["split"].tolist(), ["train", "validation", "test"])
@@ -72,25 +72,19 @@ class RelationalMergeTests(unittest.TestCase):
         relational = make_relational_table([1, 1, 3])
 
         with self.assertRaises(ValueError):
-            validate_relational_merge(
-                self.model_index, relational, RELATIONAL_FEATURES
-            )
+            validate_relational_merge(self.model_index, relational, RELATIONAL_FEATURES)
 
     def test_missing_relational_ids_fail(self) -> None:
         relational = make_relational_table([1, 2])
 
         with self.assertRaises(ValueError):
-            validate_relational_merge(
-                self.model_index, relational, RELATIONAL_FEATURES
-            )
+            validate_relational_merge(self.model_index, relational, RELATIONAL_FEATURES)
 
     def test_extra_relational_ids_fail(self) -> None:
         relational = make_relational_table([1, 2, 3, 4])
 
         with self.assertRaises(ValueError):
-            validate_relational_merge(
-                self.model_index, relational, RELATIONAL_FEATURES
-            )
+            validate_relational_merge(self.model_index, relational, RELATIONAL_FEATURES)
 
     def test_partition_attachment_preserves_rows_and_split(self) -> None:
         merged = validate_relational_merge(
@@ -107,9 +101,7 @@ class RelationalMergeTests(unittest.TestCase):
             }
         )
 
-        result = attach_relational_features(
-            train, merged, "train", RELATIONAL_FEATURES
-        )
+        result = attach_relational_features(train, merged, "train", RELATIONAL_FEATURES)
 
         self.assertEqual(len(result), 1)
         self.assertEqual(result["TransactionID"].tolist(), [1])
@@ -137,9 +129,7 @@ class ControlledManifestTests(unittest.TestCase):
             *RELATIONAL_FEATURES,
         ]
 
-        validate_model_columns_against_frozen_b0(
-            model_columns, b0_features, RELATIONAL_FEATURES
-        )
+        validate_model_columns_against_frozen_b0(model_columns, b0_features, RELATIONAL_FEATURES)
 
         with self.assertRaises(ValueError):
             validate_model_columns_against_frozen_b0(
@@ -150,9 +140,7 @@ class ControlledManifestTests(unittest.TestCase):
 
     def test_categorical_manifest_is_identical_to_b0(self) -> None:
         metadata = load_frozen_b0_metadata()
-        b1_features = build_b1_feature_manifest(
-            metadata["feature_columns"], RELATIONAL_FEATURES
-        )
+        b1_features = build_b1_feature_manifest(metadata["feature_columns"], RELATIONAL_FEATURES)
         categorical_columns = metadata["categorical_feature_columns"]
 
         self.assertTrue(set(categorical_columns).issubset(b1_features))

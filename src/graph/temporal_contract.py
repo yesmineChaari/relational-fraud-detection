@@ -138,7 +138,6 @@ from __future__ import annotations
 
 from typing import Iterable
 
-
 RELATION_NAME = "card1"
 GROUP_COLUMNS = ["card1"]
 
@@ -185,6 +184,4 @@ def assert_no_forbidden_node_features(feature_columns: Iterable[str]) -> None:
     """Rule 6: isFraud and the other B0-forbidden columns may never appear."""
     leaked = FORBIDDEN_NODE_FEATURE_COLUMNS & set(feature_columns)
     if leaked:
-        raise AssertionError(
-            f"Forbidden columns present in node feature vector: {sorted(leaked)}."
-        )
+        raise AssertionError(f"Forbidden columns present in node feature vector: {sorted(leaked)}.")

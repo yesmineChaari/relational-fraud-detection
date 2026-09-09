@@ -85,9 +85,7 @@ class BaselinePreprocessingTests(unittest.TestCase):
             assert_no_forbidden_features(["TransactionAmt", "TransactionID_y"])
 
     def test_relational_features_are_allowed(self) -> None:
-        feature_columns = get_feature_columns(
-            ["TransactionID", "TransactionAmt", "graph_degree"]
-        )
+        feature_columns = get_feature_columns(["TransactionID", "TransactionAmt", "graph_degree"])
         self.assertEqual(feature_columns, ["TransactionAmt", "graph_degree"])
 
 

@@ -27,8 +27,8 @@ Output: reports/relational_screening/
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -187,13 +187,11 @@ def load_audit_reports() -> tuple[pd.DataFrame, pd.DataFrame]:
     """Load entity and graph diagnostic CSVs produced by the relation audit."""
     if not ENTITY_DIAG_PATH.exists():
         raise FileNotFoundError(
-            f"Entity diagnostics not found: {ENTITY_DIAG_PATH}. "
-            "Run the relational audit first."
+            f"Entity diagnostics not found: {ENTITY_DIAG_PATH}. Run the relational audit first."
         )
     if not GRAPH_DIAG_PATH.exists():
         raise FileNotFoundError(
-            f"Graph diagnostics not found: {GRAPH_DIAG_PATH}. "
-            "Run the relational audit first."
+            f"Graph diagnostics not found: {GRAPH_DIAG_PATH}. Run the relational audit first."
         )
 
     entity_df = pd.read_csv(ENTITY_DIAG_PATH)
@@ -202,9 +200,7 @@ def load_audit_reports() -> tuple[pd.DataFrame, pd.DataFrame]:
     for df, name in [(entity_df, "entity_diagnostics"), (graph_df, "graph_diagnostics")]:
         missing_relations = set(ALL_CANDIDATE_NAMES) - set(df["relation"])
         if missing_relations:
-            raise ValueError(
-                f"{name}.csv is missing relations: {sorted(missing_relations)}."
-            )
+            raise ValueError(f"{name}.csv is missing relations: {sorted(missing_relations)}.")
     return entity_df, graph_df
 
 
@@ -221,9 +217,7 @@ def classify_relation(
     largest_component = float(graph_row["largest_component_pct"])
 
     if coverage < COVERAGE_MIN_PCT:
-        reasons.append(
-            f"coverage {coverage:.2f}% < threshold {COVERAGE_MIN_PCT}%"
-        )
+        reasons.append(f"coverage {coverage:.2f}% < threshold {COVERAGE_MIN_PCT}%")
         rejected = True
 
     if largest_entity >= LARGEST_ENTITY_SHARE_REJECT_PCT:
@@ -259,8 +253,7 @@ def classify_relation(
 
     if group_median < GROUP_SIZE_MEDIAN_MIN:
         reasons.append(
-            f"group_size_median {group_median} < "
-            f"preferred threshold {GROUP_SIZE_MEDIAN_MIN}"
+            f"group_size_median {group_median} < preferred threshold {GROUP_SIZE_MEDIAN_MIN}"
         )
         all_preferred = False
 
@@ -271,9 +264,7 @@ def classify_relation(
         all_preferred = False
 
     if all_preferred and not np.isnan(fraud_lift) and fraud_lift > 1.0:
-        reasons.append(
-            f"all preferred thresholds met; fraud_neighbor_lift={fraud_lift:.3f}"
-        )
+        reasons.append(f"all preferred thresholds met; fraud_neighbor_lift={fraud_lift:.3f}")
         return "promising", reasons
 
     reasons.append("structurally valid but not all preferred thresholds met")
@@ -439,8 +430,12 @@ def compute_feature_stats(
 
     if len(vals_valid) == 0:
         q_stats: dict[str, Any] = {
-            "min": np.nan, "median": np.nan, "p90": np.nan,
-            "p95": np.nan, "p99": np.nan, "max": np.nan,
+            "min": np.nan,
+            "median": np.nan,
+            "p90": np.nan,
+            "p95": np.nan,
+            "p99": np.nan,
+            "max": np.nan,
         }
     else:
         q_stats = {
@@ -488,21 +483,15 @@ def compute_feature_stats(
     cov_prevalence = float(cov_labels.mean()) if len(cov_labels) else np.nan
 
     pr_auc_lift = (
-        pr_auc / prevalence
-        if not np.isnan(pr_auc) and prevalence and prevalence > 0
-        else np.nan
+        pr_auc / prevalence if not np.isnan(pr_auc) and prevalence and prevalence > 0 else np.nan
     )
     pr_auc_lift_covered = (
         cov_pr / cov_prevalence
         if not np.isnan(cov_pr) and cov_prevalence and cov_prevalence > 0
         else np.nan
     )
-    roc_auc_strength = (
-        abs(roc_ascending - 0.5) if not np.isnan(roc_ascending) else np.nan
-    )
-    roc_auc_strength_covered = (
-        abs(cov_roc - 0.5) if not np.isnan(cov_roc) else np.nan
-    )
+    roc_auc_strength = abs(roc_ascending - 0.5) if not np.isnan(roc_ascending) else np.nan
+    roc_auc_strength_covered = abs(cov_roc - 0.5) if not np.isnan(cov_roc) else np.nan
 
     if is_recency:
         bins = _compute_recency_bins(values, labels)
@@ -650,9 +639,7 @@ def _coverage_confound_row(
         "covered_rows": n_covered,
         "coverage_pct_train": 100.0 * n_covered / n if n else np.nan,
         "fraud_rate_covered": float(y[covered].mean()) if n_covered else np.nan,
-        "fraud_rate_uncovered": (
-            float(y[~covered].mean()) if n_covered < n else np.nan
-        ),
+        "fraud_rate_uncovered": (float(y[~covered].mean()) if n_covered < n else np.nan),
         "coverage_indicator_pr_auc": indicator_pr,
         "coverage_indicator_roc_auc": indicator_roc,
     }
@@ -665,18 +652,14 @@ def _coverage_confound_row(
 
 def extract_b1_importance_diagnostic() -> pd.DataFrame:
     if not B1_FEATURE_IMPORTANCE_PATH.exists():
-        raise FileNotFoundError(
-            f"B1 feature importance not found: {B1_FEATURE_IMPORTANCE_PATH}"
-        )
+        raise FileNotFoundError(f"B1 feature importance not found: {B1_FEATURE_IMPORTANCE_PATH}")
     imp_df = pd.read_csv(B1_FEATURE_IMPORTANCE_PATH)
     required_cols = {"feature", "importance_gain", "importance_split"}
     if not required_cols.issubset(set(imp_df.columns)):
         raise ValueError(f"B1 feature importance CSV must contain columns {required_cols}.")
 
     imp_df = imp_df.sort_values("importance_gain", ascending=False).reset_index(drop=True)
-    imp_df["rank_gain"] = (
-        imp_df["importance_gain"].rank(ascending=False, method="min").astype(int)
-    )
+    imp_df["rank_gain"] = imp_df["importance_gain"].rank(ascending=False, method="min").astype(int)
     imp_df["rank_split"] = (
         imp_df["importance_split"].rank(ascending=False, method="min").astype(int)
     )
@@ -685,8 +668,14 @@ def extract_b1_importance_diagnostic() -> pd.DataFrame:
     total_features = len(imp_df)
     relational_rows = relational_rows.assign(total_features_in_model=total_features)
     return relational_rows[
-        ["feature", "importance_gain", "importance_split", "rank_gain", "rank_split",
-         "total_features_in_model"]
+        [
+            "feature",
+            "importance_gain",
+            "importance_split",
+            "rank_gain",
+            "rank_split",
+            "total_features_in_model",
+        ]
     ].reset_index(drop=True)
 
 
@@ -735,9 +724,7 @@ def best_univariate_by_relation(
             "feature": row["feature"],
             "pr_auc": pr_all,
             "pr_auc_lift": _as_float(row.get("pr_auc_lift")),
-            "roc_auc": _as_float(
-                row.get("roc_auc_ascending", row.get("roc_auc", np.nan))
-            ),
+            "roc_auc": _as_float(row.get("roc_auc_ascending", row.get("roc_auc", np.nan))),
             "direction": row.get("direction", "undetermined"),
             "pr_auc_covered": pr_covered,
             "pr_auc_lift_covered": lift,
@@ -820,8 +807,7 @@ def decide_candidate_selection(
                 None if np.isnan(best_lift_covered) else best_lift_covered
             ),
             "best_univariate_roc_auc_covered": (
-                None if np.isnan(best.get("roc_auc_covered", np.nan))
-                else best["roc_auc_covered"]
+                None if np.isnan(best.get("roc_auc_covered", np.nan)) else best["roc_auc_covered"]
             ),
             "overall_feature_signal_strength": signal_strength(ranking_lift),
             "coverage_pct": float(row["coverage_pct"]),
@@ -852,8 +838,7 @@ def decide_candidate_selection(
                 largest_entity < PREFERRED_LARGEST_ENTITY_MAX_PCT
             ),
             "history_signal_at_least_moderate": bool(
-                not np.isnan(lift_covered)
-                and lift_covered >= SIGNAL_MODERATE_PR_AUC_LIFT
+                not np.isnan(lift_covered) and lift_covered >= SIGNAL_MODERATE_PR_AUC_LIFT
             ),
             "history_signal_exceeds_key_missingness": bool(
                 not REQUIRE_SIGNAL_ABOVE_MISSINGNESS
@@ -897,9 +882,7 @@ def decide_candidate_selection(
         row = screening_idx.loc[relation]
         coverage = float(row["coverage_pct"])
         largest_entity = float(row["largest_entity_share_pct"])
-        lift_covered = best_by_relation.get(relation, {}).get(
-            "pr_auc_lift_covered", np.nan
-        )
+        lift_covered = best_by_relation.get(relation, {}).get("pr_auc_lift_covered", np.nan)
         decisions[relation]["decision"] = "preferred"
         decisions[relation]["reason"] = (
             f"passed every promotion gate and ranked top "
@@ -1003,16 +986,13 @@ def run_screening(
                 all_group_columns.append(c)
 
     columns_to_load = list(
-        dict.fromkeys(
-            ["TransactionID", "TransactionDT", "split", "isFraud"] + all_group_columns
-        )
+        dict.fromkeys(["TransactionID", "TransactionDT", "split", "isFraud"] + all_group_columns)
     )
 
     log("Stage B: loading model dataset...")
     if not dataset_path.exists():
         raise FileNotFoundError(
-            f"Model dataset not found: {dataset_path}. "
-            "Build it before running screening."
+            f"Model dataset not found: {dataset_path}. Build it before running screening."
         )
 
     schema_cols = set(pq.read_schema(dataset_path).names)
@@ -1097,14 +1077,35 @@ def run_screening(
     discrimination_df = pd.DataFrame(disc_rows_flat)
 
     disc_col_order = [
-        "relation", "feature", "nonzero_rate", "missing_rate", "prevalence",
-        "min", "median", "p90", "p95", "p99", "max",
-        "mean_fraud", "median_fraud", "mean_normal", "median_normal",
-        "n_scored", "direction", "pr_auc", "pr_auc_lift", "pr_auc_ascending",
-        "roc_auc_ascending", "roc_auc_strength",
-        "n_covered", "covered_prevalence", "direction_covered",
-        "pr_auc_covered", "pr_auc_lift_covered",
-        "roc_auc_covered_ascending", "roc_auc_strength_covered",
+        "relation",
+        "feature",
+        "nonzero_rate",
+        "missing_rate",
+        "prevalence",
+        "min",
+        "median",
+        "p90",
+        "p95",
+        "p99",
+        "max",
+        "mean_fraud",
+        "median_fraud",
+        "mean_normal",
+        "median_normal",
+        "n_scored",
+        "direction",
+        "pr_auc",
+        "pr_auc_lift",
+        "pr_auc_ascending",
+        "roc_auc_ascending",
+        "roc_auc_strength",
+        "n_covered",
+        "covered_prevalence",
+        "direction_covered",
+        "pr_auc_covered",
+        "pr_auc_lift_covered",
+        "roc_auc_covered_ascending",
+        "roc_auc_strength_covered",
         "fraud_rate_bins_json",
     ]
     disc_col_order = [c for c in disc_col_order if c in discrimination_df.columns]
@@ -1169,7 +1170,8 @@ def run_screening(
     protected_hashes_after = {str(p): _sha256(p) for p in PROTECTED_PATHS}
     if protected_hashes_before != protected_hashes_after:
         changed = [
-            p for p in protected_hashes_before
+            p
+            for p in protected_hashes_before
             if protected_hashes_before[p] != protected_hashes_after.get(p)
         ]
         raise AssertionError(f"Screening modified protected artifacts: {changed}")

@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_float_dtype, is_integer_dtype, is_numeric_dtype
 
-
 ROOT_DIR = Path(__file__).resolve().parents[2]
 INPUT_PATH = ROOT_DIR / "data" / "processed" / "model_dataset.parquet"
 
@@ -50,6 +49,7 @@ WINDOW_7D_SECONDS = 604_800
 # Helpers: relation-specific path / name derivation
 # ---------------------------------------------------------------------------
 
+
 def _feature_names(relation: str) -> list[str]:
     return [
         f"{relation}_prior_count",
@@ -74,6 +74,7 @@ def _input_columns(group_columns: list[str]) -> list[str]:
 # ---------------------------------------------------------------------------
 # Validation helpers
 # ---------------------------------------------------------------------------
+
 
 def require_columns(df: pd.DataFrame, required: set[str], source_name: str) -> None:
     missing = required - set(df.columns)
@@ -138,6 +139,7 @@ def validate_feature_output(
 # ---------------------------------------------------------------------------
 # Core scan (relation-agnostic)
 # ---------------------------------------------------------------------------
+
 
 def _scan_sorted_valid_groups(
     valid_rows: pd.DataFrame,
@@ -204,6 +206,7 @@ def _scan_sorted_valid_groups(
 # Main feature-building function (relation-parameterised)
 # ---------------------------------------------------------------------------
 
+
 def compute_relational_features(
     source_df: pd.DataFrame,
     relation: str,
@@ -235,21 +238,17 @@ def compute_relational_features(
     output_recency = np.full(row_count, np.nan, dtype=np.float64)
 
     if len(valid_positions):
-        valid_rows = source_df.iloc[valid_positions][
-            [*group_columns, "TransactionDT"]
-        ].copy()
+        valid_rows = source_df.iloc[valid_positions][[*group_columns, "TransactionDT"]].copy()
         valid_rows["_original_position"] = valid_positions
         valid_rows = valid_rows.sort_values(
             [*group_columns, "TransactionDT", "_original_position"],
             kind="mergesort",
         ).reset_index(drop=True)
 
-        sorted_prior, sorted_24h, sorted_7d, sorted_recency = (
-            _scan_sorted_valid_groups(valid_rows, group_columns)
+        sorted_prior, sorted_24h, sorted_7d, sorted_recency = _scan_sorted_valid_groups(
+            valid_rows, group_columns
         )
-        original_positions = valid_rows["_original_position"].to_numpy(
-            dtype=np.int64, copy=False
-        )
+        original_positions = valid_rows["_original_position"].to_numpy(dtype=np.int64, copy=False)
         output_prior[original_positions] = sorted_prior
         output_24h[original_positions] = sorted_24h
         output_7d[original_positions] = sorted_7d
@@ -286,6 +285,7 @@ def build_relational_features(source_df: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Metadata
 # ---------------------------------------------------------------------------
+
 
 def _display_path(path: Path) -> str:
     resolved = path.resolve()
@@ -347,12 +347,12 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
 # Public API used by AGENTS.md Step 1
 # ---------------------------------------------------------------------------
 
+
 def build_and_save_relational_features(relation_name: str) -> None:
     """Generate, validate, and persist features for the given relation."""
     if relation_name not in RELATION_REGISTRY:
         raise ValueError(
-            f"Unknown relation: {relation_name!r}. "
-            f"Supported: {sorted(RELATION_REGISTRY)}."
+            f"Unknown relation: {relation_name!r}. Supported: {sorted(RELATION_REGISTRY)}."
         )
     group_columns = RELATION_REGISTRY[relation_name]
     output_path = _output_path(relation_name)
@@ -366,9 +366,7 @@ def build_and_save_relational_features(relation_name: str) -> None:
     print(f"[{relation_name}] Loading columns from: {INPUT_PATH}")
     source_df = pd.read_parquet(INPUT_PATH, columns=load_cols)
     if len(source_df) != EXPECTED_ROWS:
-        raise ValueError(
-            f"Expected {EXPECTED_ROWS:,} source rows; got {len(source_df):,}."
-        )
+        raise ValueError(f"Expected {EXPECTED_ROWS:,} source rows; got {len(source_df):,}.")
 
     print(f"[{relation_name}] Building features (group_columns={group_columns})...")
     feature_df = build_relational_features_for(source_df, relation_name, group_columns)
@@ -395,6 +393,7 @@ def build_and_save_relational_features(relation_name: str) -> None:
 # ---------------------------------------------------------------------------
 # CLI entry point (backward-compatible default: card_core_addr1)
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(

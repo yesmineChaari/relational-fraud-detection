@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import torch
 
-
 ROOT_DIR = Path(__file__).resolve().parents[2]
 REPORT_PATH = ROOT_DIR / "reports" / "environment" / "g1_dependency_stack.json"
 

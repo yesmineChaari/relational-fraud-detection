@@ -58,9 +58,7 @@ class ExposureGapTests(unittest.TestCase):
         self.assertAlmostEqual(gap["round_ratio"], 1.0)
 
     def test_common_length_is_the_shorter_arm(self):
-        self.assertEqual(
-            common_length(make_curve(np.zeros(40)), make_curve(np.zeros(90))), 40
-        )
+        self.assertEqual(common_length(make_curve(np.zeros(40)), make_curve(np.zeros(90))), 40)
 
 
 class DeltaEstimatorTests(unittest.TestCase):
@@ -99,9 +97,7 @@ class DeltaEstimatorTests(unittest.TestCase):
     def test_plateau_window_is_clipped_to_the_common_range(self):
         reference = make_curve(np.full(30, 0.4))
         variant = make_curve(np.full(30, 0.5))
-        self.assertAlmostEqual(
-            delta_at(reference, variant, PLATEAU, plateau_window=10_000), 0.10
-        )
+        self.assertAlmostEqual(delta_at(reference, variant, PLATEAU, plateau_window=10_000), 0.10)
 
     def test_unknown_estimator_is_rejected(self):
         curve = make_curve(np.zeros(10))
@@ -144,9 +140,7 @@ class OffMetricTests(unittest.TestCase):
         # must be read at those rounds, not at its own maximum.
         reference = make_curve([0.9, 0.1, 0.1], auc=[0.50, 0.99, 0.99])
         variant = make_curve([0.1, 0.1, 0.9], auc=[0.99, 0.99, 0.40])
-        self.assertAlmostEqual(
-            off_metric_delta_at_selection(reference, variant), 0.40 - 0.50
-        )
+        self.assertAlmostEqual(off_metric_delta_at_selection(reference, variant), 0.40 - 0.50)
 
     def test_off_metric_can_disagree_with_the_stopping_metric(self):
         # The pattern the ticket turns on: variant wins on the stopping metric

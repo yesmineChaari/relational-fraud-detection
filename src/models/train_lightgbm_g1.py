@@ -27,8 +27,16 @@ from pandas.api.types import is_float_dtype, is_numeric_dtype
 
 from src.graph.train_graphsage_encoder import (
     EMBEDDING_DIM,
+)
+from src.graph.train_graphsage_encoder import (
     EMBEDDINGS_PATH as GRAPH_EMBEDDINGS_PATH,
+)
+from src.graph.train_graphsage_encoder import (
     METADATA_PATH as GRAPH_METADATA_PATH,
+)
+from src.models.significance import (
+    load_validation_predictions,
+    paired_bootstrap_pr_auc_delta,
 )
 from src.models.train_lightgbm_baseline import (
     CATEGORY_MAPPINGS_PATH,
@@ -65,10 +73,6 @@ from src.models.train_lightgbm_relational import (
     snapshot_protected_artifacts,
     validate_frozen_lightgbm_configuration,
     validate_model_columns_against_frozen_b0,
-)
-from src.models.significance import (
-    load_validation_predictions,
-    paired_bootstrap_pr_auc_delta,
 )
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -133,15 +137,21 @@ def load_embedding_metadata(
 ) -> dict[str, Any]:
     metadata = read_json(path)
     if metadata.get("relation_name") != relation:
-        raise ValueError(f"GraphSAGE embedding metadata has the wrong relation (expected {relation!r}).")
+        raise ValueError(
+            f"GraphSAGE embedding metadata has the wrong relation (expected {relation!r})."
+        )
     if metadata.get("architecture", {}).get("embedding_dim") != embedding_dim:
-        raise ValueError("GraphSAGE embedding dimension does not match the encoder's declared width.")
+        raise ValueError(
+            "GraphSAGE embedding dimension does not match the encoder's declared width."
+        )
     if metadata.get("test_labels_used") is not False:
         raise ValueError("GraphSAGE embeddings were trained using test labels.")
     if metadata.get("target_labels_used_in_node_features") is not False:
         raise ValueError("GraphSAGE node features leaked the fraud label.")
     if metadata.get("embedding_has_no_target_column") is not True:
-        raise ValueError("GraphSAGE embedding artifact metadata does not attest to being label-free.")
+        raise ValueError(
+            "GraphSAGE embedding artifact metadata does not attest to being label-free."
+        )
     if metadata.get("split_row_counts") != EXPECTED_SPLIT_COUNTS:
         raise ValueError("GraphSAGE embedding split counts do not match the frozen split manifest.")
     return metadata
@@ -219,8 +229,10 @@ def validate_embedding_merge(
         suffixes=("_model", "_embedding"),
         validate="one_to_one",
     )
-    if not split_check["split_model"].astype("string").equals(
-        split_check["split_embedding"].astype("string")
+    if (
+        not split_check["split_model"]
+        .astype("string")
+        .equals(split_check["split_embedding"].astype("string"))
     ):
         raise AssertionError("Embedding split assignment disagrees with the model index.")
 
@@ -278,11 +290,15 @@ def build_g1_feature_manifest(b0_features: list[str], feat_names: list[str]) -> 
 def embedding_gain_ranks(feature_importance: pd.DataFrame, feat_names: list[str]) -> dict[str, Any]:
     ranked = feature_importance.copy()
     ranked["rank_gain"] = ranked["importance_gain"].rank(ascending=False, method="min").astype(int)
-    ranked["rank_split"] = ranked["importance_split"].rank(ascending=False, method="min").astype(int)
+    ranked["rank_split"] = (
+        ranked["importance_split"].rank(ascending=False, method="min").astype(int)
+    )
     embedding_rows = ranked[ranked["feature"].isin(feat_names)].set_index("feature")
     missing = set(feat_names) - set(embedding_rows.index)
     if missing:
-        raise AssertionError(f"Embedding features missing from feature importance: {sorted(missing)}.")
+        raise AssertionError(
+            f"Embedding features missing from feature importance: {sorted(missing)}."
+        )
     gain_ranks = embedding_rows.loc[feat_names, "rank_gain"].tolist()
     split_ranks = embedding_rows.loc[feat_names, "rank_split"].tolist()
     return {
@@ -326,7 +342,9 @@ def compute_significance(
     if not merged["isFraud"].equals(merged["isFraud_b0"]) or not merged["isFraud"].equals(
         merged["isFraud_b1"]
     ):
-        raise AssertionError("isFraud labels disagree across G1/B0/B1-card1 validation predictions.")
+        raise AssertionError(
+            "isFraud labels disagree across G1/B0/B1-card1 validation predictions."
+        )
 
     y_true = merged["isFraud"].to_numpy(dtype=np.int8)
     g1_scores = merged["g1_prediction"].to_numpy(dtype=np.float64)
@@ -554,9 +572,7 @@ def run_g1(relation: str = RELATION) -> None:
         best_iteration=int(model.best_iteration_),
         maximum_estimators=MAX_ESTIMATORS,
     )
-    validation_scores = model.predict_proba(
-        X_validation, num_iteration=model.best_iteration_
-    )[:, 1]
+    validation_scores = model.predict_proba(X_validation, num_iteration=model.best_iteration_)[:, 1]
     if len(validation_scores) != EXPECTED_SPLIT_COUNTS[EVALUATION_SPLIT]:
         raise AssertionError("G1 validation prediction count is incorrect.")
     if not np.isfinite(validation_scores).all():
@@ -633,22 +649,38 @@ def run_g1(relation: str = RELATION) -> None:
     )
 
     expected_artifacts = [
-        paths["model"], paths["metrics"], paths["metadata"], paths["feature_importance"],
-        paths["validation_predictions"], paths["learning_curve"], paths["comparison_to_b0"],
-        paths["comparison_to_b1_card1"], paths["significance"],
+        paths["model"],
+        paths["metrics"],
+        paths["metadata"],
+        paths["feature_importance"],
+        paths["validation_predictions"],
+        paths["learning_curve"],
+        paths["comparison_to_b0"],
+        paths["comparison_to_b1_card1"],
+        paths["significance"],
     ]
     missing = [str(p) for p in expected_artifacts if not p.exists()]
     if missing:
         raise OSError(f"G1 artifacts were not created: {missing}.")
 
     print(f"[G1-{relation}] Best iteration: {model.best_iteration_:,}")
-    print(f"[G1-{relation}] Actual stopping iteration: {learning_curve_summary['actual_stopping_iteration']:,}")
-    print(f"[G1-{relation}] Early stopping triggered: {'YES' if learning_curve_summary['early_stopping_triggered'] else 'NO'}")
+    print(
+        f"[G1-{relation}] Actual stopping iteration: {learning_curve_summary['actual_stopping_iteration']:,}"
+    )
+    print(
+        f"[G1-{relation}] Early stopping triggered: {'YES' if learning_curve_summary['early_stopping_triggered'] else 'NO'}"
+    )
     print(f"[G1-{relation}] Validation PR-AUC:  {metrics['pr_auc']:.12f}")
     print(f"[G1-{relation}] Validation ROC-AUC: {metrics['roc_auc']:.12f}")
-    print(f"[G1-{relation}] Embedding gain-rank range: {ranks['best_embedding_gain_rank']}-{ranks['worst_embedding_gain_rank']} of {ranks['total_features_in_model']}")
-    print(f"[G1-{relation}] G1 vs B0 PR-AUC delta 95% CI: [{significance['g1_vs_b0']['ci_lower_95']:+.5f}, {significance['g1_vs_b0']['ci_upper_95']:+.5f}] excludes zero: {significance['g1_vs_b0']['excludes_zero']}")
-    print(f"[G1-{relation}] G1 vs B1-card1 PR-AUC delta 95% CI: [{significance['g1_vs_b1_card1']['ci_lower_95']:+.5f}, {significance['g1_vs_b1_card1']['ci_upper_95']:+.5f}] excludes zero: {significance['g1_vs_b1_card1']['excludes_zero']}")
+    print(
+        f"[G1-{relation}] Embedding gain-rank range: {ranks['best_embedding_gain_rank']}-{ranks['worst_embedding_gain_rank']} of {ranks['total_features_in_model']}"
+    )
+    print(
+        f"[G1-{relation}] G1 vs B0 PR-AUC delta 95% CI: [{significance['g1_vs_b0']['ci_lower_95']:+.5f}, {significance['g1_vs_b0']['ci_upper_95']:+.5f}] excludes zero: {significance['g1_vs_b0']['excludes_zero']}"
+    )
+    print(
+        f"[G1-{relation}] G1 vs B1-card1 PR-AUC delta 95% CI: [{significance['g1_vs_b1_card1']['ci_lower_95']:+.5f}, {significance['g1_vs_b1_card1']['ci_upper_95']:+.5f}] excludes zero: {significance['g1_vs_b1_card1']['excludes_zero']}"
+    )
     print(f"[G1-{relation}] Model saved: {paths['model']}")
     print(f"[G1-{relation}] Reports saved: {paths['report_dir']}")
     print(f"[G1-{relation}] Frozen B0/B1-card1 artifacts unchanged: YES")

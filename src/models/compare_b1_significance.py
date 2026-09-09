@@ -30,8 +30,12 @@ from src.models.train_lightgbm_baseline import RANDOM_SEED, write_json
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
-B0_VALIDATION_PREDICTIONS_PATH = ROOT_DIR / "reports" / "baseline" / "validation_predictions.parquet"
-B1_CARD1_VALIDATION_PREDICTIONS_PATH = ROOT_DIR / "reports" / "b1" / "card1" / "validation_predictions.parquet"
+B0_VALIDATION_PREDICTIONS_PATH = (
+    ROOT_DIR / "reports" / "baseline" / "validation_predictions.parquet"
+)
+B1_CARD1_VALIDATION_PREDICTIONS_PATH = (
+    ROOT_DIR / "reports" / "b1" / "card1" / "validation_predictions.parquet"
+)
 B1_CARD1_CARD2_VALIDATION_PREDICTIONS_PATH = (
     ROOT_DIR / "reports" / "b1" / "card1_card2" / "validation_predictions.parquet"
 )
@@ -92,8 +96,7 @@ def build_significance(
             "of the resampled PR-AUC delta"
         ),
         "source": (
-            "Regenerated from persisted validation_predictions.parquet files; "
-            "no retraining."
+            "Regenerated from persisted validation_predictions.parquet files; no retraining."
         ),
         "comparisons": results,
         "versions": {"numpy": np.__version__, "pandas": pd.__version__},

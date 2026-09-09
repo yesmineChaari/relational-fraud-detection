@@ -86,9 +86,7 @@ class PairedBootstrapTests(unittest.TestCase):
 def _write_predictions(
     path: Path, transaction_ids: list[int], labels: list[int], scores: list[float]
 ) -> None:
-    df = pd.DataFrame(
-        {"TransactionID": transaction_ids, "isFraud": labels, "prediction": scores}
-    )
+    df = pd.DataFrame({"TransactionID": transaction_ids, "isFraud": labels, "prediction": scores})
     df.to_parquet(path, index=False)
 
 

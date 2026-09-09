@@ -95,9 +95,9 @@ from src.graph.train_graphsage_encoder import (
     HIDDEN_DIM,
     HOP_FAN_OUTS,
     LEARNING_RATE,
+    READOUT_MODES,
     READOUT_NEIGHBOURHOOD_ONLY,
     READOUT_SELF_AND_NEIGHBOURHOOD,
-    READOUT_MODES,
     GraphSAGEWithHead,
     build_batch_tensors,
     get_feature_columns,
@@ -114,7 +114,6 @@ from src.models.train_lightgbm_baseline import (
     repository_relative,
     write_json,
 )
-
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
@@ -313,9 +312,7 @@ def build_encoder_context() -> EncoderContext:
     feature_columns = get_feature_columns()
     train_mask = (meta["split"] == "train").to_numpy()
 
-    edges_df = pd.read_parquet(
-        ENTITY_EDGES_PATH, columns=["entity_id", "node_id", "TransactionDT"]
-    )
+    edges_df = pd.read_parquet(ENTITY_EDGES_PATH, columns=["entity_id", "node_id", "TransactionDT"])
     index = build_temporal_graph_index(edges_df)
     del edges_df
 
@@ -350,9 +347,7 @@ def build_encoder_context() -> EncoderContext:
     )
 
 
-def assign_cross_fit_folds(
-    train_node_ids: np.ndarray, n_folds: int, seed: int
-) -> np.ndarray:
+def assign_cross_fit_folds(train_node_ids: np.ndarray, n_folds: int, seed: int) -> np.ndarray:
     """Fold index per entry of `train_node_ids`, a fixed-seed disjoint partition.
 
     Deliberately *not* stratified by label or by entity. Stratifying on the
@@ -393,12 +388,8 @@ def train_single_encoder(
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
 
-    criterion = nn.BCEWithLogitsLoss(
-        pos_weight=torch.tensor(ctx.pos_weight, dtype=torch.float32)
-    )
-    model = GraphSAGEWithHead(
-        len(ctx.feature_columns), HIDDEN_DIM, EMBEDDING_DIM, readout
-    )
+    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(ctx.pos_weight, dtype=torch.float32))
+    model = GraphSAGEWithHead(len(ctx.feature_columns), HIDDEN_DIM, EMBEDDING_DIM, readout)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     monitored = fixed_epochs is None
@@ -470,9 +461,7 @@ def train_single_encoder(
         )
         monitor_probs = 1.0 / (1.0 + np.exp(-monitor_logits))
         val_pr_auc = float(
-            average_precision_score(
-                ctx.labels_by_node_id[ctx.validation_node_ids], monitor_probs
-            )
+            average_precision_score(ctx.labels_by_node_id[ctx.validation_node_ids], monitor_probs)
         )
         curve_rows.append(
             {
@@ -499,13 +488,10 @@ def train_single_encoder(
 
     if monitored:
         if best_state is None:
-            raise RuntimeError(
-                f"[{label}] Training never improved on the validation monitor."
-            )
+            raise RuntimeError(f"[{label}] Training never improved on the validation monitor.")
         model.load_state_dict(best_state)
         epoch_cap_reached = (
-            stopped_epoch == budget.max_epochs
-            and epochs_without_improvement < budget.patience
+            stopped_epoch == budget.max_epochs and epochs_without_improvement < budget.patience
         )
     else:
         best_epoch = stopped_epoch
@@ -547,9 +533,7 @@ def standalone_validation_metrics(
         CONTROL_INFERENCE_BATCH_SIZE,
     )
     probs = 1.0 / (1.0 + np.exp(-logits))
-    y_validation = pd.Series(
-        ctx.labels_by_node_id[ctx.validation_node_ids].astype("int8")
-    )
+    y_validation = pd.Series(ctx.labels_by_node_id[ctx.validation_node_ids].astype("int8"))
     metrics = evaluate_validation(y_validation, probs, run_name=run_name)
     metrics["model"] = f"{run_name}_encoder_with_head"
     return metrics
@@ -586,10 +570,7 @@ def embedding_frame(meta: pd.DataFrame, embeddings: np.ndarray) -> pd.DataFrame:
         {
             "TransactionID": meta["TransactionID"].to_numpy(),
             "split": meta["split"].astype("string").to_numpy(),
-            **{
-                f"embedding_{i:02d}": embeddings[:, i]
-                for i in range(embeddings.shape[1])
-            },
+            **{f"embedding_{i:02d}": embeddings[:, i] for i in range(embeddings.shape[1])},
         }
     )
     if len(frame) != EXPECTED_ROWS:
@@ -634,9 +615,7 @@ def _run_plain_variant(ctx: EncoderContext, variant: EncoderVariant) -> dict[str
     }
 
 
-def _run_cross_fitted_variant(
-    ctx: EncoderContext, variant: EncoderVariant
-) -> dict[str, Any]:
+def _run_cross_fitted_variant(ctx: EncoderContext, variant: EncoderVariant) -> dict[str, Any]:
     n_folds = int(variant.cross_fit_folds)
     full = train_single_encoder(
         ctx,
@@ -690,9 +669,7 @@ def _run_cross_fitted_variant(
             fixed_epochs=fold_epochs,
         )
         fold_model = fold_result["model"]
-        fold_embeddings = embed_nodes(
-            ctx, fold_model, held_out, variant.seed + 100 + fold, label
-        )
+        fold_embeddings = embed_nodes(ctx, fold_model, held_out, variant.seed + 100 + fold, label)
         embeddings[held_out] = fold_embeddings
         embedded[held_out] = True
 
@@ -877,8 +854,7 @@ def run_variant(
 ) -> None:
     if variant_name not in ENCODER_VARIANTS:
         raise KeyError(
-            f"Unknown encoder variant {variant_name!r}; "
-            f"known: {sorted(ENCODER_VARIANTS)}."
+            f"Unknown encoder variant {variant_name!r}; known: {sorted(ENCODER_VARIANTS)}."
         )
     variant = ENCODER_VARIANTS[variant_name]
     if skip_existing and variant_is_complete(variant):
@@ -897,9 +873,7 @@ def run_variant(
         outcome = _run_cross_fitted_variant(ctx, variant)
 
     frame = embedding_frame(ctx.meta, outcome["embeddings"])
-    frame.to_parquet(
-        variant.embeddings_path, index=False, engine="pyarrow", compression="snappy"
-    )
+    frame.to_parquet(variant.embeddings_path, index=False, engine="pyarrow", compression="snappy")
 
     curve_rows = outcome.get("curve_rows_override", outcome["run"]["curve_rows"])
     pd.DataFrame(curve_rows).to_csv(variant.training_curve_path, index=False)
@@ -916,7 +890,9 @@ def run_variant(
     print(f"\n[{variant.name}] Readout: {variant.readout}")
     print(f"[{variant.name}] Cross-fit folds: {variant.cross_fit_folds or 'none'}")
     print(f"[{variant.name}] Best epoch: {run['best_epoch']} / stopped at {run['stopped_epoch']}")
-    print(f"[{variant.name}] Early stopping triggered: {'YES' if run['early_stopping_triggered'] else 'NO'}")
+    print(
+        f"[{variant.name}] Early stopping triggered: {'YES' if run['early_stopping_triggered'] else 'NO'}"
+    )
     print(f"[{variant.name}] Standalone validation PR-AUC:  {outcome['metrics']['pr_auc']:.8f}")
     print(f"[{variant.name}] Standalone validation ROC-AUC: {outcome['metrics']['roc_auc']:.8f}")
     print(f"[{variant.name}] Embeddings saved: {variant.embeddings_path}")
@@ -927,9 +903,7 @@ def run_variant(
 def main() -> None:
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Train a G1 attribution-control encoder variant."
-    )
+    parser = argparse.ArgumentParser(description="Train a G1 attribution-control encoder variant.")
     parser.add_argument(
         "--variant",
         action="append",
@@ -944,9 +918,7 @@ def main() -> None:
     args = parser.parse_args()
     names = args.variant or ["extended_budget", "neighbourhood_only", "cross_fitted"]
 
-    if args.skip_existing and all(
-        variant_is_complete(ENCODER_VARIANTS[name]) for name in names
-    ):
+    if args.skip_existing and all(variant_is_complete(ENCODER_VARIANTS[name]) for name in names):
         print("Every requested variant is already complete; nothing to do.")
         return
 

@@ -56,8 +56,14 @@ from pandas.api.types import is_numeric_dtype
 
 from src.graph.train_graphsage_encoder import (
     EMBEDDING_DIM,
+)
+from src.graph.train_graphsage_encoder import (
     EMBEDDINGS_PATH as FROZEN_EMBEDDINGS_PATH,
+)
+from src.graph.train_graphsage_encoder import (
     METADATA_PATH as FROZEN_ENCODER_METADATA_PATH,
+)
+from src.graph.train_graphsage_encoder import (
     METRICS_PATH as FROZEN_ENCODER_METRICS_PATH,
 )
 from src.graph.train_graphsage_variants import (
@@ -88,6 +94,7 @@ from src.models.train_lightgbm_g1 import (
     EXPECTED_G1_FEATURE_COUNT,
     RELATION,
     SIGNIFICANCE_RESAMPLES,
+    _resolve_g1_paths,
     build_comparison_table,
     build_g1_feature_manifest,
     embedding_feature_names,
@@ -97,7 +104,6 @@ from src.models.train_lightgbm_g1 import (
     load_g1_datasets,
     load_validation_predictions,
     paired_bootstrap_pr_auc_delta,
-    _resolve_g1_paths,
 )
 from src.models.train_lightgbm_relational import (
     B0_PROTECTED_PATHS,
@@ -120,7 +126,9 @@ from src.models.train_lightgbm_relational import (
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 B0_METRICS_PATH = ROOT_DIR / "reports" / "baseline" / "lightgbm_metrics.json"
-B0_VALIDATION_PREDICTIONS_PATH = ROOT_DIR / "reports" / "baseline" / "validation_predictions.parquet"
+B0_VALIDATION_PREDICTIONS_PATH = (
+    ROOT_DIR / "reports" / "baseline" / "validation_predictions.parquet"
+)
 
 _G1_PATHS = _resolve_g1_paths(RELATION)
 G1_METRICS_PATH = _G1_PATHS["metrics"]
@@ -142,7 +150,9 @@ G1_PROTECTED_PATHS = [
 ]
 
 SHUFFLED_VARIANT_NAME = "shuffled_embedding"
-SHUFFLED_EMBEDDINGS_PATH = PROCESSED_DIR / f"graphsage_card1_embeddings_{SHUFFLED_VARIANT_NAME}.parquet"
+SHUFFLED_EMBEDDINGS_PATH = (
+    PROCESSED_DIR / f"graphsage_card1_embeddings_{SHUFFLED_VARIANT_NAME}.parquet"
+)
 SHUFFLE_SEED = 42
 
 REFERENCE_LABELS = ("b0", "b1_card1", "g1")
@@ -393,7 +403,9 @@ def compute_control_significance(
         "validation_row_count": int(len(merged)),
     }
     for label in REFERENCE_LABELS:
-        print(f"Running paired bootstrap (control vs {label}, {SIGNIFICANCE_RESAMPLES:,} resamples)...")
+        print(
+            f"Running paired bootstrap (control vs {label}, {SIGNIFICANCE_RESAMPLES:,} resamples)..."
+        )
         reference_scores = merged[f"{label}_prediction"].to_numpy(dtype=np.float64)
         results[f"control_vs_{label}"] = paired_bootstrap_pr_auc_delta(
             y_true, control_scores, reference_scores
@@ -508,18 +520,12 @@ def build_control_metadata(
 
 def control_is_complete(control: ControlRun) -> bool:
     """True when every artifact this control publishes is already on disk."""
-    return all(
-        path.exists()
-        for key, path in control.paths().items()
-        if key != "report_dir"
-    )
+    return all(path.exists() for key, path in control.paths().items() if key != "report_dir")
 
 
 def run_control(control_name: str, skip_existing: bool = False) -> None:
     if control_name not in CONTROL_RUNS:
-        raise KeyError(
-            f"Unknown control {control_name!r}; known: {sorted(CONTROL_RUNS)}."
-        )
+        raise KeyError(f"Unknown control {control_name!r}; known: {sorted(CONTROL_RUNS)}.")
     control = CONTROL_RUNS[control_name]
     if skip_existing and control_is_complete(control):
         print(f"[control-{control.name}] Already complete; skipping.")
@@ -546,15 +552,11 @@ def run_control(control_name: str, skip_existing: bool = False) -> None:
     b0_metrics = read_json(B0_METRICS_PATH)
     b1_card1_metrics = read_json(B1_CARD1_METRICS_PATH)
     g1_metrics = read_json(G1_METRICS_PATH)
-    embedding_metadata = load_embedding_metadata(
-        RELATION, path=control.embedding_metadata_path
-    )
+    embedding_metadata = load_embedding_metadata(RELATION, path=control.embedding_metadata_path)
 
     print(f"[control-{control.name}] Isolates: {control.isolates}")
     print(f"[control-{control.name}] Embedding block: {control.embeddings_path}")
-    train_df, validation_df, _ = load_g1_datasets(
-        RELATION, embeddings_path=control.embeddings_path
-    )
+    train_df, validation_df, _ = load_g1_datasets(RELATION, embeddings_path=control.embeddings_path)
 
     b0_features = list(b0_metadata["feature_columns"])
     validate_model_columns_against_frozen_b0(list(train_df.columns), b0_features, feat_names)
@@ -633,9 +635,7 @@ def run_control(control_name: str, skip_existing: bool = False) -> None:
         best_iteration=int(model.best_iteration_),
         maximum_estimators=MAX_ESTIMATORS,
     )
-    validation_scores = model.predict_proba(
-        X_validation, num_iteration=model.best_iteration_
-    )[:, 1]
+    validation_scores = model.predict_proba(X_validation, num_iteration=model.best_iteration_)[:, 1]
     if len(validation_scores) != EXPECTED_SPLIT_COUNTS[EVALUATION_SPLIT]:
         raise AssertionError("Control validation prediction count is incorrect.")
     if not np.isfinite(validation_scores).all():
@@ -723,10 +723,14 @@ def run_control(control_name: str, skip_existing: bool = False) -> None:
         raise OSError(f"Control artifacts were not created: {missing}.")
 
     print(f"[control-{control.name}] Best iteration: {model.best_iteration_:,}")
-    print(f"[control-{control.name}] Early stopping triggered: {'YES' if learning_curve_summary['early_stopping_triggered'] else 'NO'}")
+    print(
+        f"[control-{control.name}] Early stopping triggered: {'YES' if learning_curve_summary['early_stopping_triggered'] else 'NO'}"
+    )
     print(f"[control-{control.name}] Validation PR-AUC:  {metrics['pr_auc']:.12f}")
     print(f"[control-{control.name}] Validation ROC-AUC: {metrics['roc_auc']:.12f}")
-    print(f"[control-{control.name}] Embedding gain-rank range: {ranks['best_embedding_gain_rank']}-{ranks['worst_embedding_gain_rank']} of {ranks['total_features_in_model']}")
+    print(
+        f"[control-{control.name}] Embedding gain-rank range: {ranks['best_embedding_gain_rank']}-{ranks['worst_embedding_gain_rank']} of {ranks['total_features_in_model']}"
+    )
     for label in REFERENCE_LABELS:
         block = significance[f"control_vs_{label}"]
         print(

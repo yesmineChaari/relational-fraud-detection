@@ -29,18 +29,20 @@ from src.models.train_lightgbm_ablation import (
     FEATURE_KEYS,
     KEY_TO_FEATURE,
     LEAVE_ONE_OUT,
-    MODES,
     MODE_REFERENCE,
+    MODES,
     RELATION,
     SINGLETON,
     STOP_METRIC,
     build_ablation_feature_manifest,
     feature_subset,
-    main as ablation_main,
     planned_runs,
     resolve_feature,
     resolve_run_paths,
     validate_ablation_configuration,
+)
+from src.models.train_lightgbm_ablation import (
+    main as ablation_main,
 )
 from src.models.train_lightgbm_baseline import RANDOM_SEED, build_lightgbm_model
 from src.models.train_lightgbm_convergence_check import (
@@ -124,9 +126,7 @@ def null_panel() -> list[dict]:
 def write_run(
     root: Path, mode: str, feature: str, complete: bool = True, seed: int = RANDOM_SEED
 ) -> None:
-    run_dir = (
-        root / f"{mode}_{FEATURE_KEYS[feature]}" / f"cap{CONVERGED_MAX_ESTIMATORS}_seed{seed}"
-    )
+    run_dir = root / f"{mode}_{FEATURE_KEYS[feature]}" / f"cap{CONVERGED_MAX_ESTIMATORS}_seed{seed}"
     run_dir.mkdir(parents=True, exist_ok=True)
     with (run_dir / "metrics.json").open("w", encoding="utf-8") as handle:
         json.dump({"pr_auc": 0.6512, "ablation_mode": mode, "ablated_feature": feature}, handle)
@@ -255,21 +255,26 @@ class CommandLineTests(unittest.TestCase):
         return calls
 
     def test_a_requested_seed_reaches_the_trainer(self) -> None:
-        calls = self.run_main(
-            ["--mode", "loo", "--feature", "prior_count_24h", "--seed", "202"]
-        )
+        calls = self.run_main(["--mode", "loo", "--feature", "prior_count_24h", "--seed", "202"])
         self.assertEqual(len(calls), 1)
         mode, feature, seed, _ = calls[0]
-        self.assertEqual((mode, feature, seed), (LEAVE_ONE_OUT, KEY_TO_FEATURE["prior_count_24h"], 202))
+        self.assertEqual(
+            (mode, feature, seed), (LEAVE_ONE_OUT, KEY_TO_FEATURE["prior_count_24h"], 202)
+        )
 
     def test_several_seeds_expand_into_several_runs(self) -> None:
         calls = self.run_main(
             [
-                "--mode", "loo",
-                "--feature", "prior_count_24h",
-                "--seed", "202",
-                "--seed", "707",
-                "--seed", "1337",
+                "--mode",
+                "loo",
+                "--feature",
+                "prior_count_24h",
+                "--seed",
+                "202",
+                "--seed",
+                "707",
+                "--seed",
+                "1337",
             ]
         )
         self.assertEqual([seed for _, _, seed, _ in calls], [202, 707, 1337])
@@ -284,9 +289,7 @@ class CommandLineTests(unittest.TestCase):
         self.assertEqual({seed for _, _, seed, _ in calls}, {RANDOM_SEED})
 
     def test_skip_existing_reaches_the_trainer(self) -> None:
-        calls = self.run_main(
-            ["--mode", "loo", "--feature", "prior_count_24h", "--skip-existing"]
-        )
+        calls = self.run_main(["--mode", "loo", "--feature", "prior_count_24h", "--skip-existing"])
         self.assertTrue(all(skip for _, _, _, skip in calls))
 
 
@@ -553,7 +556,10 @@ class OutcomeClassificationTests(unittest.TestCase):
         self.assertEqual(outcome["outcome_code"], OUTCOME_NOT_LOCALISED)
 
     def test_a_partial_panel_is_flagged_as_incomplete(self) -> None:
-        rows = [comparison_row(SINGLETON, feature, 0.0001, -0.001, 0.001) for feature in ABLATION_FEATURES]
+        rows = [
+            comparison_row(SINGLETON, feature, 0.0001, -0.001, 0.001)
+            for feature in ABLATION_FEATURES
+        ]
         outcome = classify_ablation_outcome(pd.DataFrame(rows), NOISE_FLOOR)
         self.assertFalse(outcome["panel_complete"])
         self.assertEqual(outcome["outcome_code"], OUTCOME_PANEL_INCOMPLETE)

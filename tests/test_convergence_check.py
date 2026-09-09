@@ -20,9 +20,9 @@ from src.models.train_lightgbm_convergence_check import (
     summarize_learning_curve_for_stop_metric,
     validate_convergence_configuration,
 )
+from src.models.train_lightgbm_g1 import B1_CARD1_PROTECTED_PATHS
 from src.models.train_lightgbm_g1_controls import G1_PROTECTED_PATHS
 from src.models.train_lightgbm_relational import B0_PROTECTED_PATHS, MAX_ESTIMATORS
-from src.models.train_lightgbm_g1 import B1_CARD1_PROTECTED_PATHS
 
 SCALE_POS_WEIGHT = 27.5
 DEFAULT_MAX_ESTIMATORS = 15_000
@@ -127,7 +127,9 @@ class ProtectedArtifactTests(unittest.TestCase):
                 for role, path in paths.items():
                     posix = path.as_posix()
                     for fragment in forbidden_fragments:
-                        self.assertNotIn(fragment, posix, f"{role} path lands under {fragment}: {posix}")
+                        self.assertNotIn(
+                            fragment, posix, f"{role} path lands under {fragment}: {posix}"
+                        )
 
 
 class FrozenConfigurationTests(unittest.TestCase):
@@ -255,9 +257,7 @@ class CapDecisionTests(unittest.TestCase):
     NOISE_FLOOR = 0.00051  # the panel's published clean-stratum std
 
     def test_missing_convergence_points_are_not_decidable(self) -> None:
-        result = build_cap_decision(
-            {"b0": _convergence("b0", True)}, None, None, self.NOISE_FLOOR
-        )
+        result = build_cap_decision({"b0": _convergence("b0", True)}, None, None, self.NOISE_FLOOR)
         self.assertFalse(result["decidable"])
         self.assertIsNone(result["verdict"])
 

@@ -8,7 +8,6 @@ import pandas as pd
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 
-
 ROOT_DIR = Path(__file__).resolve().parents[2]
 RAW_DIR = ROOT_DIR / "data" / "raw"
 REPORT_DIR = ROOT_DIR / "reports" / "relational_audit"
@@ -61,16 +60,10 @@ def load_data() -> pd.DataFrame:
     )
     train_ids = split_df.loc[split_df["split"] == "train", "TransactionID"]
     if len(train_ids) != 413_378 or not train_ids.is_unique:
-        raise ValueError(
-            "Frozen train split must contain 413,378 unique TransactionIDs."
-        )
-    transactions = transactions[
-        transactions["TransactionID"].isin(train_ids)
-    ].copy()
+        raise ValueError("Frozen train split must contain 413,378 unique TransactionIDs.")
+    transactions = transactions[transactions["TransactionID"].isin(train_ids)].copy()
     if len(transactions) != 413_378:
-        raise ValueError(
-            "Relational audit did not load exactly the frozen train partition."
-        )
+        raise ValueError("Relational audit did not load exactly the frozen train partition.")
 
     identity = pd.read_csv(IDENTITY_FILE, usecols=identity_columns)
     df = transactions.merge(
@@ -120,12 +113,8 @@ def analyze_entity_structure(
     dense_mask = group_sizes >= DENSE_GROUP_SIZE
 
     baseline_fraud_rate = df["isFraud"].mean()
-    repeated_fraud_rate = (
-        df.loc[repeated_mask, "isFraud"].mean() if repeated_mask.any() else np.nan
-    )
-    dense_fraud_rate = (
-        df.loc[dense_mask, "isFraud"].mean() if dense_mask.any() else np.nan
-    )
+    repeated_fraud_rate = df.loc[repeated_mask, "isFraud"].mean() if repeated_mask.any() else np.nan
+    dense_fraud_rate = df.loc[dense_mask, "isFraud"].mean() if dense_mask.any() else np.nan
 
     temporal = df.loc[covered, ["TransactionDT", "isFraud"]].copy()
     temporal["entity"] = proxy.loc[covered].astype("string")
@@ -184,11 +173,7 @@ def analyze_entity_structure(
         ),
     }
 
-    top_entities = (
-        entity_temporal.sort_values("group_size", ascending=False)
-        .head(25)
-        .reset_index()
-    )
+    top_entities = entity_temporal.sort_values("group_size", ascending=False).head(25).reset_index()
     top_entities.insert(0, "relation", name)
     return result, top_entities
 
@@ -211,16 +196,20 @@ def build_temporal_edges(
         raise ValueError("proxy must have the same length and index as df.")
 
     valid = proxy.notna()
-    temp = pd.DataFrame(
-        {
-            "entity": proxy.loc[valid].astype("string"),
-            "time": df.loc[valid, "TransactionDT"].to_numpy(),
-            "node": df.loc[valid, "node_id"].to_numpy(),
-        }
-    ).sort_values(
-        ["entity", "time", "node"],
-        kind="mergesort",
-    ).reset_index(drop=True)
+    temp = (
+        pd.DataFrame(
+            {
+                "entity": proxy.loc[valid].astype("string"),
+                "time": df.loc[valid, "TransactionDT"].to_numpy(),
+                "node": df.loc[valid, "node_id"].to_numpy(),
+            }
+        )
+        .sort_values(
+            ["entity", "time", "node"],
+            kind="mergesort",
+        )
+        .reset_index(drop=True)
+    )
     if temp.empty:
         return np.array([], dtype=np.uint64)
 
@@ -228,13 +217,9 @@ def build_temporal_edges(
     # order. same_time_position is its position inside the current timestamp
     # tie block. Their difference is therefore the number of strictly earlier
     # transactions, regardless of how many equal-time rows precede this row.
-    entity_position = (
-        temp.groupby("entity", sort=False).cumcount().to_numpy(dtype=np.int64)
-    )
+    entity_position = temp.groupby("entity", sort=False).cumcount().to_numpy(dtype=np.int64)
     same_time_position = (
-        temp.groupby(["entity", "time"], sort=False)
-        .cumcount()
-        .to_numpy(dtype=np.int64)
+        temp.groupby(["entity", "time"], sort=False).cumcount().to_numpy(dtype=np.int64)
     )
     strictly_earlier_count = entity_position - same_time_position
 
@@ -250,14 +235,10 @@ def build_temporal_edges(
             continue
 
         previous_position = (
-            entity_start_position[valid_edge]
-            + strictly_earlier_count[valid_edge]
-            - lag
+            entity_start_position[valid_edge] + strictly_earlier_count[valid_edge] - lag
         )
         if not np.all(times[previous_position] < times[valid_edge]):
-            raise AssertionError(
-                "Temporal edge construction produced a non-strict predecessor."
-            )
+            raise AssertionError("Temporal edge construction produced a non-strict predecessor.")
 
         source = nodes[valid_edge]
         destination = nodes[previous_position]
@@ -275,26 +256,19 @@ def verify_primary_relation(graph_df: pd.DataFrame) -> dict[str, float | str]:
     required = set(CANDIDATES)
     missing = required - set(indexed.index)
     if missing:
-        raise ValueError(
-            f"Graph diagnostics are missing relations: {sorted(missing)}."
-        )
+        raise ValueError(f"Graph diagnostics are missing relations: {sorted(missing)}.")
 
     primary = indexed.loc[PRIMARY_RELATION]
     card_relations = [name for name in CANDIDATES if name.startswith("card")]
     device_relations = ["device_info", "device_fingerprint"]
 
     max_card_lift = float(indexed.loc[card_relations, "fraud_neighbor_lift"].max())
-    min_card_largest_component = float(
-        indexed.loc[card_relations, "largest_component_pct"].min()
-    )
-    max_device_participation = float(
-        indexed.loc[device_relations, "participating_nodes_pct"].max()
-    )
+    min_card_largest_component = float(indexed.loc[card_relations, "largest_component_pct"].min())
+    max_device_participation = float(indexed.loc[device_relations, "participating_nodes_pct"].max())
 
     if not np.isclose(float(primary["fraud_neighbor_lift"]), max_card_lift):
         raise AssertionError(
-            f"{PRIMARY_RELATION} no longer has the strongest card-family "
-            "fraud-neighbor lift."
+            f"{PRIMARY_RELATION} no longer has the strongest card-family fraud-neighbor lift."
         )
     if not np.isclose(
         float(primary["largest_component_pct"]),
@@ -306,8 +280,7 @@ def verify_primary_relation(graph_df: pd.DataFrame) -> dict[str, float | str]:
         )
     if float(primary["participating_nodes_pct"]) <= max_device_participation:
         raise AssertionError(
-            f"{PRIMARY_RELATION} no longer has broader participation than "
-            "the device candidates."
+            f"{PRIMARY_RELATION} no longer has broader participation than the device candidates."
         )
 
     return {
@@ -358,14 +331,10 @@ def analyze_graph(name: str, df: pd.DataFrame, edge_ids: np.ndarray) -> dict:
     current_is_fraud = source_labels == 1
     current_is_normal = source_labels == 0
     previous_fraud_rate = (
-        destination_labels[current_is_fraud].mean()
-        if current_is_fraud.any()
-        else np.nan
+        destination_labels[current_is_fraud].mean() if current_is_fraud.any() else np.nan
     )
     previous_normal_rate = (
-        destination_labels[current_is_normal].mean()
-        if current_is_normal.any()
-        else np.nan
+        destination_labels[current_is_normal].mean() if current_is_normal.any() else np.nan
     )
 
     return {
@@ -393,10 +362,7 @@ def analyze_graph(name: str, df: pd.DataFrame, edge_ids: np.ndarray) -> dict:
             if baseline_fraud_rate > 0 and not np.isnan(previous_fraud_rate)
             else np.nan
         ),
-        "fraud_fraud_edge_pct": np.mean(
-            (source_labels == 1) & (destination_labels == 1)
-        )
-        * 100,
+        "fraud_fraud_edge_pct": np.mean((source_labels == 1) & (destination_labels == 1)) * 100,
     }
 
 
@@ -494,9 +460,7 @@ def main() -> None:
         handle.write("\n")
 
     print(f"Reports written to {REPORT_DIR.resolve()}")
-    print(
-        f"Primary relation retained: {primary_evidence['primary_relation']}"
-    )
+    print(f"Primary relation retained: {primary_evidence['primary_relation']}")
 
 
 if __name__ == "__main__":

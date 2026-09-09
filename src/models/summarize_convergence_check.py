@@ -86,9 +86,7 @@ def discover_runs(n_estimators: int, seed: int) -> dict[tuple[str, str], dict[st
     return found
 
 
-def convergence_points(
-    runs: dict[tuple[str, str], dict[str, Any]]
-) -> dict[str, dict[str, Any]]:
+def convergence_points(runs: dict[tuple[str, str], dict[str, Any]]) -> dict[str, dict[str, Any]]:
     """Where each configuration stops under the required (average_precision) rule."""
     points: dict[str, dict[str, Any]] = {}
     for config in CONFIGURATIONS:
@@ -151,9 +149,7 @@ def capped_vs_converged(
     }
 
 
-def decoupled_stopping_effect(
-    runs: dict[tuple[str, str], dict[str, Any]]
-) -> dict[str, Any] | None:
+def decoupled_stopping_effect(runs: dict[tuple[str, str], dict[str, Any]]) -> dict[str, Any] | None:
     """Capped/AP-patience vs. extended/AP-patience vs. extended/AUC-patience, B0 vs B1-card1."""
     b0_auc = runs.get(("b0", DECOUPLING_STOP_METRIC))
     b1_auc = runs.get(("b1_card1", DECOUPLING_STOP_METRIC))

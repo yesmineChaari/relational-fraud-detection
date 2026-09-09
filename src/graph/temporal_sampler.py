@@ -24,11 +24,9 @@ not left to happen to follow from repeated hop-1 filtering.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 
 PAD_NODE_ID = -1
 
@@ -74,9 +72,7 @@ def _validate_sorted_edges(edges_df: pd.DataFrame) -> None:
     same_entity = np.diff(entity_id) == 0
     dt_diff = np.diff(edges_df["TransactionDT"].to_numpy())
     if not np.all(dt_diff[same_entity] >= 0):
-        raise ValueError(
-            "Entity edges table is not sorted by TransactionDT within an entity."
-        )
+        raise ValueError("Entity edges table is not sorted by TransactionDT within an entity.")
 
     node_id = edges_df["node_id"].to_numpy()
     if node_id.min() != 0 or node_id.max() != len(node_id) - 1:
@@ -122,9 +118,7 @@ def load_temporal_graph_index() -> TemporalGraphIndex:
             f"Entity edges table not found: {ENTITY_EDGES_PATH}. Run "
             "`python -m src.graph.build_transaction_graph` first."
         )
-    edges_df = pd.read_parquet(
-        ENTITY_EDGES_PATH, columns=["entity_id", "node_id", "TransactionDT"]
-    )
+    edges_df = pd.read_parquet(ENTITY_EDGES_PATH, columns=["entity_id", "node_id", "TransactionDT"])
     return build_temporal_graph_index(edges_df)
 
 

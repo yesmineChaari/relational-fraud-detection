@@ -77,12 +77,20 @@ from lightgbm import LGBMClassifier
 
 from src.features.build_relational_features import (
     EXPECTED_ROWS as RELATIONAL_EXPECTED_ROWS,
+)
+from src.features.build_relational_features import (
     INPUT_PATH as RELATIONAL_INPUT_PATH,
+)
+from src.features.build_relational_features import (
     RELATION_REGISTRY,
     _feature_names,
-    _output_path as _rel_output_path,
-    _metadata_path as _rel_metadata_path,
     build_relational_features_for,
+)
+from src.features.build_relational_features import (
+    _metadata_path as _rel_metadata_path,
+)
+from src.features.build_relational_features import (
+    _output_path as _rel_output_path,
 )
 from src.models.train_lightgbm_baseline import (
     EXPECTED_SPLIT_COUNTS,
@@ -101,6 +109,13 @@ from src.models.train_lightgbm_baseline import (
     validate_split_counts,
     write_json,
 )
+from src.models.train_lightgbm_convergence_check import (
+    DEFAULT_MAX_ESTIMATORS as CONVERGED_MAX_ESTIMATORS,
+)
+from src.models.train_lightgbm_convergence_check import (
+    resolve_run_paths as resolve_convergence_run_paths,
+)
+from src.models.train_lightgbm_g1 import B1_CARD1_PROTECTED_PATHS
 from src.models.train_lightgbm_relational import (
     B0_PROTECTED_PATHS,
     EARLY_STOPPING_ROUNDS,
@@ -116,11 +131,6 @@ from src.models.train_lightgbm_relational import (
     snapshot_protected_artifacts,
     validate_model_columns_against_frozen_b0,
     validate_relational_merge,
-)
-from src.models.train_lightgbm_g1 import B1_CARD1_PROTECTED_PATHS
-from src.models.train_lightgbm_convergence_check import (
-    DEFAULT_MAX_ESTIMATORS as CONVERGED_MAX_ESTIMATORS,
-    resolve_run_paths as resolve_convergence_run_paths,
 )
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -169,7 +179,8 @@ def resolve_run_paths(permutation_seed: int) -> dict[str, Path]:
     run_dir = REPORT_DIR / f"permseed_{permutation_seed}" / f"cap{CONVERGED_MAX_ESTIMATORS}"
     return {
         "run_dir": run_dir,
-        "model": MODEL_DIR / (
+        "model": MODEL_DIR
+        / (
             f"lightgbm_permuted_{RELATION}__cap{CONVERGED_MAX_ESTIMATORS}"
             f"_permseed{permutation_seed}.txt"
         ),
@@ -179,7 +190,8 @@ def resolve_run_paths(permutation_seed: int) -> dict[str, Path]:
         "validation_predictions": run_dir / "validation_predictions.parquet",
         "learning_curve": run_dir / "learning_curve.csv",
         "permuted_relational_features": (
-            PERMUTED_FEATURES_DIR / f"relational_features_{RELATION}_permseed{permutation_seed}.parquet"
+            PERMUTED_FEATURES_DIR
+            / f"relational_features_{RELATION}_permseed{permutation_seed}.parquet"
         ),
         "permuted_relational_metadata": run_dir / "relational_features_metadata.json",
     }
@@ -207,8 +219,7 @@ def permute_card1(source_df: pd.DataFrame, permutation_seed: int) -> pd.DataFram
     after_counts = pd.Series(permuted).value_counts(dropna=False).sort_index()
     if not before_counts.equals(after_counts):
         raise AssertionError(
-            "card1 permutation changed the entity-size marginal; this must "
-            "be an exact permutation."
+            "card1 permutation changed the entity-size marginal; this must be an exact permutation."
         )
 
     permuted_df = source_df.copy()
@@ -294,7 +305,9 @@ def load_permuted_null_datasets(
     return train_with_relations, validation_with_relations, feature_columns
 
 
-def validate_permuted_null_configuration(model: LGBMClassifier, b0_metadata: dict[str, Any]) -> None:
+def validate_permuted_null_configuration(
+    model: LGBMClassifier, b0_metadata: dict[str, Any]
+) -> None:
     """Assert every LightGBM setting matches the converged B1-card1 reference exactly.
 
     Cap and seed are both pinned at the converged reference's values (15,000,
@@ -354,9 +367,7 @@ def run_permuted_null(permutation_seed: int, skip_existing: bool = False) -> dic
     print(f"[{label}] Applying frozen categorical mappings (no fitting)...")
     apply_frozen_category_mappings(train_df, validation_df, categorical_columns, mappings)
 
-    X_train = pd.DataFrame(
-        {column: train_df.pop(column) for column in feature_columns}, copy=False
-    )
+    X_train = pd.DataFrame({column: train_df.pop(column) for column in feature_columns}, copy=False)
     X_validation = pd.DataFrame(
         {column: validation_df.pop(column) for column in feature_columns}, copy=False
     )
@@ -409,9 +420,7 @@ def run_permuted_null(permutation_seed: int, skip_existing: bool = False) -> dic
         maximum_estimators=CONVERGED_MAX_ESTIMATORS,
     )
 
-    validation_scores = model.predict_proba(
-        X_validation, num_iteration=model.best_iteration_
-    )[:, 1]
+    validation_scores = model.predict_proba(X_validation, num_iteration=model.best_iteration_)[:, 1]
     if len(validation_scores) != EXPECTED_SPLIT_COUNTS[EVALUATION_SPLIT]:
         raise AssertionError(f"[{label}] Validation prediction count is incorrect.")
     if not np.isfinite(validation_scores).all():
@@ -427,17 +436,13 @@ def run_permuted_null(permutation_seed: int, skip_existing: bool = False) -> dic
             "weighting": "weighted",
             "scale_pos_weight": float(scale_pos_weight),
             "maximum_estimators": int(CONVERGED_MAX_ESTIMATORS),
-            "actual_stopping_iteration": int(
-                learning_curve_summary["actual_stopping_iteration"]
-            ),
+            "actual_stopping_iteration": int(learning_curve_summary["actual_stopping_iteration"]),
             "best_iteration": int(model.best_iteration_),
             "best_validation_average_precision": float(
                 learning_curve_summary["best_validation_average_precision"]
             ),
             "early_stopping_rounds": EARLY_STOPPING_ROUNDS,
-            "early_stopping_triggered": bool(
-                learning_curve_summary["early_stopping_triggered"]
-            ),
+            "early_stopping_triggered": bool(learning_curve_summary["early_stopping_triggered"]),
             "estimator_cap_reached": bool(learning_curve_summary["estimator_cap_reached"]),
             "stop_metric": STOP_METRIC,
         }
@@ -499,7 +504,9 @@ def run_permuted_null(permutation_seed: int, skip_existing: bool = False) -> dic
     }
     write_json(paths["metadata"], metadata)
     assert_protected_artifacts_unchanged(
-        protected_before, ALL_PROTECTED_PATHS, label="frozen/converged B0, B1-card1 and the real card1 relation"
+        protected_before,
+        ALL_PROTECTED_PATHS,
+        label="frozen/converged B0, B1-card1 and the real card1 relation",
     )
 
     print(

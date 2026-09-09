@@ -5,7 +5,6 @@ from pathlib import Path
 import pandas as pd
 from pandas.api.types import is_numeric_dtype, is_object_dtype, is_string_dtype
 
-
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 TRANSACTION_PATH = ROOT_DIR / "data" / "raw" / "train_transaction.csv"
@@ -36,9 +35,7 @@ def require_columns(
 
     missing = required - set(df.columns)
     if missing:
-        raise ValueError(
-            f"{source_name} is missing required columns: {sorted(missing)}."
-        )
+        raise ValueError(f"{source_name} is missing required columns: {sorted(missing)}.")
 
 
 def load_transaction_data(path: Path = TRANSACTION_PATH) -> pd.DataFrame:
@@ -99,9 +96,7 @@ def validate_identity_data(
     if not identity_df["TransactionID"].is_unique:
         raise ValueError("train_identity.csv contains duplicate TransactionID values.")
 
-    overlapping_columns = (set(identity_df.columns) & transaction_columns) - {
-        "TransactionID"
-    }
+    overlapping_columns = (set(identity_df.columns) & transaction_columns) - {"TransactionID"}
     if overlapping_columns:
         raise ValueError(
             "Transaction and identity inputs contain unexpected overlapping columns: "
@@ -142,8 +137,7 @@ def validate_split_manifest(split_df: pd.DataFrame) -> None:
     unexpected_labels = set(split_df["isFraud"].unique()) - {0, 1}
     if unexpected_labels:
         raise ValueError(
-            "Split manifest contains unexpected isFraud labels: "
-            f"{sorted(unexpected_labels)}."
+            f"Split manifest contains unexpected isFraud labels: {sorted(unexpected_labels)}."
         )
 
     observed_splits = set(split_df["split"].astype("string").unique())
@@ -156,20 +150,13 @@ def validate_split_manifest(split_df: pd.DataFrame) -> None:
     actual_counts = split_counts(split_df["split"])
     if actual_counts != EXPECTED_SPLIT_COUNTS:
         raise ValueError(
-            "Unexpected split counts. "
-            f"Expected {EXPECTED_SPLIT_COUNTS}, got {actual_counts}."
+            f"Unexpected split counts. Expected {EXPECTED_SPLIT_COUNTS}, got {actual_counts}."
         )
 
     split_as_string = split_df["split"].astype("string")
-    train_max = split_df.loc[
-        split_as_string == "train", "TransactionDT"
-    ].max()
-    validation_min = split_df.loc[
-        split_as_string == "validation", "TransactionDT"
-    ].min()
-    validation_max = split_df.loc[
-        split_as_string == "validation", "TransactionDT"
-    ].max()
+    train_max = split_df.loc[split_as_string == "train", "TransactionDT"].max()
+    validation_min = split_df.loc[split_as_string == "validation", "TransactionDT"].min()
+    validation_max = split_df.loc[split_as_string == "validation", "TransactionDT"].max()
     test_min = split_df.loc[split_as_string == "test", "TransactionDT"].min()
 
     if not train_max < validation_min:
@@ -184,9 +171,7 @@ def validate_manifest_matches_transactions(
 ) -> None:
     """Confirm manifest IDs, elapsed times, and labels match the raw input."""
 
-    comparison = transaction_df[
-        ["TransactionID", "TransactionDT", "isFraud"]
-    ].merge(
+    comparison = transaction_df[["TransactionID", "TransactionDT", "isFraud"]].merge(
         split_df[["TransactionID", "TransactionDT", "isFraud"]],
         on="TransactionID",
         how="outer",
@@ -203,14 +188,9 @@ def validate_manifest_matches_transactions(
         )
 
     dt_mismatches = int(
-        (
-            comparison["TransactionDT_raw"]
-            != comparison["TransactionDT_manifest"]
-        ).sum()
+        (comparison["TransactionDT_raw"] != comparison["TransactionDT_manifest"]).sum()
     )
-    label_mismatches = int(
-        (comparison["isFraud_raw"] != comparison["isFraud_manifest"]).sum()
-    )
+    label_mismatches = int((comparison["isFraud_raw"] != comparison["isFraud_manifest"]).sum())
     if dt_mismatches or label_mismatches:
         raise ValueError(
             "Split manifest does not match the raw transaction data: "
@@ -280,20 +260,14 @@ def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
     # The production table is wide, so mutate this newly merged frame in place
     # instead of making a second multi-gigabyte copy.
     df["elapsed_days"] = df["TransactionDT"] / 86_400.0
-    df["hour_in_day"] = (
-        (df["TransactionDT"] // 3_600) % 24
-    ).astype("int16")
-    df["day_in_week_cycle"] = (
-        (df["TransactionDT"] // 86_400) % 7
-    ).astype("int8")
+    df["hour_in_day"] = ((df["TransactionDT"] // 3_600) % 24).astype("int16")
+    df["day_in_week_cycle"] = ((df["TransactionDT"] // 86_400) % 7).astype("int8")
     return df
 
 
 def is_categorical_dtype(dtype: object) -> bool:
     return (
-        is_object_dtype(dtype)
-        or is_string_dtype(dtype)
-        or isinstance(dtype, pd.CategoricalDtype)
+        is_object_dtype(dtype) or is_string_dtype(dtype) or isinstance(dtype, pd.CategoricalDtype)
     )
 
 
@@ -305,15 +279,9 @@ def build_summary(df: pd.DataFrame) -> dict[str, object]:
         if column not in predictor_metadata and column not in DERIVED_TIME_FEATURES
     ]
     categorical_columns = [
-        column
-        for column in raw_predictors
-        if is_categorical_dtype(df[column].dtype)
+        column for column in raw_predictors if is_categorical_dtype(df[column].dtype)
     ]
-    numeric_columns = [
-        column
-        for column in raw_predictors
-        if is_numeric_dtype(df[column].dtype)
-    ]
+    numeric_columns = [column for column in raw_predictors if is_numeric_dtype(df[column].dtype)]
 
     split_as_string = df["split"].astype("string")
     fraud_by_split: dict[str, dict[str, float | int]] = {}
@@ -353,9 +321,7 @@ def validate_model_dataset(df: pd.DataFrame) -> None:
         "model dataset",
     )
     if len(df) != EXPECTED_ROWS:
-        raise ValueError(
-            f"Model dataset must contain {EXPECTED_ROWS:,} rows; got {len(df):,}."
-        )
+        raise ValueError(f"Model dataset must contain {EXPECTED_ROWS:,} rows; got {len(df):,}.")
     if not df["TransactionID"].is_unique:
         raise ValueError("Model dataset contains duplicate TransactionID values.")
     if df["split"].isna().any():
@@ -377,8 +343,7 @@ def validate_model_dataset(df: pd.DataFrame) -> None:
     } & set(df.columns)
     if accidental_merge_columns:
         raise ValueError(
-            "Model dataset contains accidental merge columns: "
-            f"{sorted(accidental_merge_columns)}."
+            f"Model dataset contains accidental merge columns: {sorted(accidental_merge_columns)}."
         )
 
 
@@ -404,19 +369,13 @@ def print_summary(summary: dict[str, object], output_path: Path) -> None:
     for split_name in EXPECTED_SPLIT_COUNTS:
         split_summary = summary["fraud_by_split"][split_name]  # type: ignore[index]
         print(f"\n{split_name.capitalize()} fraud:")
-        print(
-            f"  {split_summary['n_fraud']:,} / "
-            f"{split_summary['n_transactions']:,}"
-        )
+        print(f"  {split_summary['n_fraud']:,} / {split_summary['n_transactions']:,}")
         print(f"  rate = {split_summary['fraud_rate']:.8%}")
 
     print(f"\nIdentity matched: {summary['n_identity_matched']:,}")
     print(f"Identity missing: {summary['n_identity_missing']:,}")
     print(f"Identity coverage: {summary['identity_coverage_pct']:.4f}%")
-    print(
-        "Categorical raw columns: "
-        f"{summary['n_categorical_raw_columns']:,}"
-    )
+    print(f"Categorical raw columns: {summary['n_categorical_raw_columns']:,}")
     print(f"Numeric raw columns: {summary['n_numeric_raw_columns']:,}")
     print(f"\nOutput: {output_path}")
 

@@ -62,10 +62,10 @@ from src.models.compare_ablation import load_metrics, load_noise_floor, spread
 from src.models.train_lightgbm_ablation import (
     FEATURE_KEYS,
     LEAVE_ONE_OUT,
-    MODES,
     MODE_REFERENCE,
-    REPORT_DIR,
+    MODES,
     RELATION,
+    REPORT_DIR,
     SINGLETON,
     STOP_METRIC,
     resolve_feature,
@@ -74,6 +74,8 @@ from src.models.train_lightgbm_ablation import (
 from src.models.train_lightgbm_baseline import RANDOM_SEED
 from src.models.train_lightgbm_convergence_check import (
     DEFAULT_MAX_ESTIMATORS as CONVERGED_MAX_ESTIMATORS,
+)
+from src.models.train_lightgbm_convergence_check import (
     resolve_run_paths as resolve_convergence_run_paths,
 )
 
@@ -199,9 +201,7 @@ def stratify(table: pd.DataFrame) -> dict[str, Any]:
             (clean_deltas > 0).all() or (clean_deltas < 0).all()
         )
     if len(contaminated) >= 2:
-        result["contaminated_delta_pr_auc"] = spread(
-            contaminated["delta_pr_auc"].to_numpy()
-        )
+        result["contaminated_delta_pr_auc"] = spread(contaminated["delta_pr_auc"].to_numpy())
 
     # ROC-AUC is not the early-stopping criterion, so it is undistorted by the
     # stopping point and can be read across every seed -- the same reasoning

@@ -119,7 +119,6 @@ from src.models.train_lightgbm_baseline import (
     write_json,
 )
 
-
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 FEATURE_CACHE_PATH = ROOT_DIR / "data" / "processed" / "graphsage_card1_node_features.npy"
@@ -518,7 +517,9 @@ def train_encoder() -> dict[str, Any]:
     index = build_temporal_graph_index(edges_df)
     del edges_df
 
-    print(f"[{RELATION_NAME}] Preparing the standardized feature cache ({len(feature_columns)} predictors)...")
+    print(
+        f"[{RELATION_NAME}] Preparing the standardized feature cache ({len(feature_columns)} predictors)..."
+    )
     prepare_feature_cache(feature_columns, train_mask)
     feature_cache = np.load(FEATURE_CACHE_PATH, mmap_mode="r")
     if feature_cache.shape != (len(meta), len(feature_columns)):
@@ -575,7 +576,13 @@ def train_encoder() -> dict[str, Any]:
             epoch_losses.append(float(loss.item()))
 
         monitor_logits = run_logits(
-            model, index, feature_cache, validation_monitor_ids, HOP_FAN_OUTS, rng, INFERENCE_BATCH_SIZE
+            model,
+            index,
+            feature_cache,
+            validation_monitor_ids,
+            HOP_FAN_OUTS,
+            rng,
+            INFERENCE_BATCH_SIZE,
         )
         monitor_probs = 1.0 / (1.0 + np.exp(-monitor_logits))
         monitor_labels = labels_by_node_id[validation_monitor_ids]
@@ -601,13 +608,19 @@ def train_encoder() -> dict[str, Any]:
         else:
             epochs_without_improvement += 1
             if epochs_without_improvement >= EARLY_STOPPING_PATIENCE:
-                print(f"[{RELATION_NAME}] Early stopping at epoch {epoch} (best epoch {best_epoch}).")
+                print(
+                    f"[{RELATION_NAME}] Early stopping at epoch {epoch} (best epoch {best_epoch})."
+                )
                 break
 
     if best_state is None:
-        raise RuntimeError("Training never improved on the validation monitor; no best state recorded.")
+        raise RuntimeError(
+            "Training never improved on the validation monitor; no best state recorded."
+        )
     model.load_state_dict(best_state)
-    estimator_cap_reached = stopped_epoch == MAX_EPOCHS and epochs_without_improvement < EARLY_STOPPING_PATIENCE
+    estimator_cap_reached = (
+        stopped_epoch == MAX_EPOCHS and epochs_without_improvement < EARLY_STOPPING_PATIENCE
+    )
 
     print(f"[{RELATION_NAME}] Scoring the full validation partition with the best encoder...")
     full_val_logits = run_logits(
@@ -615,7 +628,9 @@ def train_encoder() -> dict[str, Any]:
     )
     full_val_probs = 1.0 / (1.0 + np.exp(-full_val_logits))
     y_validation = pd.Series(labels_by_node_id[validation_node_ids].astype("int8"))
-    validation_metrics = evaluate_validation(y_validation, full_val_probs, run_name="graphsage_card1")
+    validation_metrics = evaluate_validation(
+        y_validation, full_val_probs, run_name="graphsage_card1"
+    )
     validation_metrics["model"] = "graphsage_card1_encoder_with_head"
 
     print(f"[{RELATION_NAME}] Extracting embeddings for all {len(all_node_ids):,} transactions...")
@@ -804,10 +819,16 @@ def build_and_train_graphsage_encoder() -> None:
     if "isFraud" in saved_embeddings.columns:
         raise AssertionError("isFraud leaked into the saved embedding artifact.")
 
-    print(f"\n[{RELATION_NAME}] Best epoch: {result['best_epoch']} / stopped at {result['stopped_epoch']}")
-    print(f"[{RELATION_NAME}] Early stopping triggered: {'YES' if result['early_stopping_triggered'] else 'NO'}")
+    print(
+        f"\n[{RELATION_NAME}] Best epoch: {result['best_epoch']} / stopped at {result['stopped_epoch']}"
+    )
+    print(
+        f"[{RELATION_NAME}] Early stopping triggered: {'YES' if result['early_stopping_triggered'] else 'NO'}"
+    )
     print(f"[{RELATION_NAME}] Full validation PR-AUC: {result['validation_metrics']['pr_auc']:.8f}")
-    print(f"[{RELATION_NAME}] Full validation ROC-AUC: {result['validation_metrics']['roc_auc']:.8f}")
+    print(
+        f"[{RELATION_NAME}] Full validation ROC-AUC: {result['validation_metrics']['roc_auc']:.8f}"
+    )
     print(f"[{RELATION_NAME}] Embeddings saved: {EMBEDDINGS_PATH}")
     print(f"[{RELATION_NAME}] Model saved: {MODEL_PATH}")
     print(f"[{RELATION_NAME}] Metrics saved: {METRICS_PATH}")

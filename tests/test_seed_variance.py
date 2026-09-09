@@ -158,18 +158,14 @@ class FrozenConfigurationTests(unittest.TestCase):
     def test_a_changed_learning_rate_is_rejected(self) -> None:
         model = seed_variant_model(202, learning_rate=0.05)
         with self.assertRaises(ValueError) as caught:
-            validate_seed_variant_configuration(
-                model, frozen_metadata(), 202, MAX_ESTIMATORS
-            )
+            validate_seed_variant_configuration(model, frozen_metadata(), 202, MAX_ESTIMATORS)
         self.assertIn("learning_rate", str(caught.exception))
 
     def test_a_changed_subsample_is_rejected(self) -> None:
         """Subsampling is what makes a seed change bite; it must stay frozen."""
         model = seed_variant_model(202, subsample=0.5)
         with self.assertRaises(ValueError):
-            validate_seed_variant_configuration(
-                model, frozen_metadata(), 202, MAX_ESTIMATORS
-            )
+            validate_seed_variant_configuration(model, frozen_metadata(), 202, MAX_ESTIMATORS)
 
     def test_a_seed_that_disagrees_with_the_model_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
@@ -191,17 +187,13 @@ class FrozenConfigurationTests(unittest.TestCase):
         model = seed_variant_model(202)
         model.set_params(n_estimators=3_000)
         with self.assertRaises(ValueError):
-            validate_seed_variant_configuration(
-                model, frozen_metadata(), 202, MAX_ESTIMATORS
-            )
+            validate_seed_variant_configuration(model, frozen_metadata(), 202, MAX_ESTIMATORS)
 
 
 class FrozenReproductionTests(unittest.TestCase):
     def test_the_check_only_applies_to_the_frozen_seed(self) -> None:
         self.assertFalse(check_frozen_reproduction("b0", 2024, 0.65)["applicable"])
-        self.assertTrue(
-            check_frozen_reproduction("b0", RANDOM_SEED, 0.65)["applicable"]
-        )
+        self.assertTrue(check_frozen_reproduction("b0", RANDOM_SEED, 0.65)["applicable"])
 
 
 class SpreadTests(unittest.TestCase):
@@ -265,9 +257,7 @@ class PairedDeltaTests(unittest.TestCase):
         self.assertEqual(list(deltas["seed"]), [42])
 
     def test_no_shared_seed_is_an_error(self) -> None:
-        runs = self.make_runs(
-            [(REFERENCE_CONFIG, 42, 0.64), (CANDIDATE_CONFIG, 202, 0.65)]
-        )
+        runs = self.make_runs([(REFERENCE_CONFIG, 42, 0.64), (CANDIDATE_CONFIG, 202, 0.65)])
         with self.assertRaises(ValueError):
             paired_seed_deltas(runs)
 
@@ -323,9 +313,7 @@ class EarlyStoppingStratificationTests(unittest.TestCase):
                 (707, 0.6448, 0.6426, False, True),
             ]
         )
-        status = stratify_by_early_stopping(paired_seed_deltas(runs))[
-            "which_stopped_per_seed"
-        ]
+        status = stratify_by_early_stopping(paired_seed_deltas(runs))["which_stopped_per_seed"]
         self.assertEqual(status[42], "neither")
         self.assertEqual(status[202], REFERENCE_CONFIG)
         self.assertEqual(status[707], CANDIDATE_CONFIG)

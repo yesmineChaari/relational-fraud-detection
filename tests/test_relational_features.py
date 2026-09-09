@@ -13,7 +13,6 @@ from src.features.build_relational_features import (
     build_relational_features,
 )
 
-
 PRIOR = RELATIONAL_FEATURES[0]
 PRIOR_24H = RELATIONAL_FEATURES[1]
 PRIOR_7D = RELATIONAL_FEATURES[2]

@@ -22,13 +22,10 @@ from pandas.api.types import (
 )
 from sklearn.metrics import average_precision_score, roc_auc_score
 
-
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 MODEL_DATASET_PATH = ROOT_DIR / "data" / "processed" / "model_dataset.parquet"
-SPLIT_MANIFEST_PATH = (
-    ROOT_DIR / "data" / "processed" / "split_assignment.parquet"
-)
+SPLIT_MANIFEST_PATH = ROOT_DIR / "data" / "processed" / "split_assignment.parquet"
 MODEL_PATH = ROOT_DIR / "models" / "lightgbm_baseline.txt"
 REPORT_DIR = ROOT_DIR / "reports" / "baseline"
 METRICS_PATH = REPORT_DIR / "lightgbm_metrics.json"
@@ -88,8 +85,7 @@ class RunConfig:
     def validate(self) -> None:
         if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", self.run_name):
             raise ValueError(
-                "run_name must contain only lowercase letters, numbers, "
-                "underscores, or hyphens."
+                "run_name must contain only lowercase letters, numbers, underscores, or hyphens."
             )
         if self.weighting not in {"weighted", "unweighted"}:
             raise ValueError("weighting must be 'weighted' or 'unweighted'.")
@@ -145,18 +141,13 @@ def require_columns(
 ) -> None:
     missing = required - set(df.columns)
     if missing:
-        raise ValueError(
-            f"{source_name} is missing required columns: {sorted(missing)}."
-        )
+        raise ValueError(f"{source_name} is missing required columns: {sorted(missing)}.")
 
 
 def validate_split_counts(df: pd.DataFrame, source_name: str) -> None:
     require_columns(df, {"TransactionID", "split"}, source_name)
     if len(df) != EXPECTED_ROWS:
-        raise ValueError(
-            f"{source_name} must contain {EXPECTED_ROWS:,} rows; "
-            f"got {len(df):,}."
-        )
+        raise ValueError(f"{source_name} must contain {EXPECTED_ROWS:,} rows; got {len(df):,}.")
     if df["TransactionID"].isna().any():
         raise ValueError(f"{source_name} contains missing TransactionID values.")
     if not df["TransactionID"].is_unique:
@@ -174,9 +165,7 @@ def validate_split_counts(df: pd.DataFrame, source_name: str) -> None:
 
 def validate_dataset_against_manifest(dataset_index: pd.DataFrame) -> None:
     if not SPLIT_MANIFEST_PATH.exists():
-        raise FileNotFoundError(
-            f"Frozen split manifest not found: {SPLIT_MANIFEST_PATH}"
-        )
+        raise FileNotFoundError(f"Frozen split manifest not found: {SPLIT_MANIFEST_PATH}")
 
     manifest = pd.read_parquet(
         SPLIT_MANIFEST_PATH,
@@ -198,9 +187,7 @@ def validate_dataset_against_manifest(dataset_index: pd.DataFrame) -> None:
     )
 
     membership_mismatches = int((comparison["_merge"] != "both").sum())
-    split_mismatches = int(
-        (comparison["split_dataset"] != comparison["split_manifest"]).sum()
-    )
+    split_mismatches = int((comparison["split_dataset"] != comparison["split_manifest"]).sum())
     if membership_mismatches or split_mismatches:
         raise ValueError(
             "Model dataset does not match the authoritative split manifest: "
@@ -247,13 +234,11 @@ def load_model_dataset() -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
 
     if len(train_df) != EXPECTED_SPLIT_COUNTS["train"]:
         raise ValueError(
-            "Filtered train partition has an unexpected row count: "
-            f"{len(train_df):,}."
+            f"Filtered train partition has an unexpected row count: {len(train_df):,}."
         )
     if len(validation_df) != EXPECTED_SPLIT_COUNTS["validation"]:
         raise ValueError(
-            "Filtered validation partition has an unexpected row count: "
-            f"{len(validation_df):,}."
+            f"Filtered validation partition has an unexpected row count: {len(validation_df):,}."
         )
     if not train_df["split"].astype("string").eq("train").all():
         raise ValueError("Filtered train data contains non-train rows.")
@@ -277,9 +262,7 @@ def load_model_dataset() -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
 
 
 def get_feature_columns(columns: list[str]) -> list[str]:
-    feature_columns = [
-        column for column in columns if column not in FORBIDDEN_FEATURE_COLUMNS
-    ]
+    feature_columns = [column for column in columns if column not in FORBIDDEN_FEATURE_COLUMNS]
     assert_no_forbidden_features(feature_columns)
     return feature_columns
 
@@ -287,9 +270,7 @@ def get_feature_columns(columns: list[str]) -> list[str]:
 def assert_no_forbidden_features(feature_columns: list[str]) -> None:
     leaked = FORBIDDEN_FEATURE_COLUMNS & set(feature_columns)
     if leaked:
-        raise AssertionError(
-            f"Forbidden columns present in model features: {sorted(leaked)}."
-        )
+        raise AssertionError(f"Forbidden columns present in model features: {sorted(leaked)}.")
 
     accidental = ACCIDENTAL_MERGE_COLUMNS & set(feature_columns)
     if accidental:
@@ -297,20 +278,15 @@ def assert_no_forbidden_features(feature_columns: list[str]) -> None:
             f"Accidental merge columns present in model features: {sorted(accidental)}."
         )
 
+
 def is_categorical_dtype(dtype: object) -> bool:
     return (
-        is_object_dtype(dtype)
-        or is_string_dtype(dtype)
-        or isinstance(dtype, pd.CategoricalDtype)
+        is_object_dtype(dtype) or is_string_dtype(dtype) or isinstance(dtype, pd.CategoricalDtype)
     )
 
 
 def identify_categorical_columns(df: pd.DataFrame) -> list[str]:
-    return [
-        column
-        for column in df.columns
-        if is_categorical_dtype(df[column].dtype)
-    ]
+    return [column for column in df.columns if is_categorical_dtype(df[column].dtype)]
 
 
 def fit_category_mapping(train_series: pd.Series) -> CategoryMapping:
@@ -342,11 +318,7 @@ def apply_category_mapping(
         raise ValueError("Category mapping lacks reserved missing/unknown codes.")
 
     values = series.astype("string").fillna(MISSING_TOKEN)
-    return (
-        values.map(mapping)
-        .fillna(mapping[UNKNOWN_TOKEN])
-        .astype("int32")
-    )
+    return values.map(mapping).fillna(mapping[UNKNOWN_TOKEN]).astype("int32")
 
 
 def fit_and_apply_categorical_mappings(
@@ -361,33 +333,22 @@ def fit_and_apply_categorical_mappings(
         mapping = fit_category_mapping(X_train[column])
         mappings[column] = mapping
         X_train[column] = apply_category_mapping(X_train[column], mapping)
-        X_validation[column] = apply_category_mapping(
-            X_validation[column], mapping
-        )
+        X_validation[column] = apply_category_mapping(X_validation[column], mapping)
     return mappings
 
 
 def assert_supported_model_dtypes(df: pd.DataFrame, source_name: str) -> None:
-    unprocessed = [
-        column
-        for column in df.columns
-        if is_categorical_dtype(df[column].dtype)
-    ]
+    unprocessed = [column for column in df.columns if is_categorical_dtype(df[column].dtype)]
     if unprocessed:
-        raise TypeError(
-            f"Unprocessed categorical columns remain in {source_name}: {unprocessed}."
-        )
+        raise TypeError(f"Unprocessed categorical columns remain in {source_name}: {unprocessed}.")
 
     unsupported = [
         column
         for column in df.columns
-        if not is_numeric_dtype(df[column].dtype)
-        and not is_bool_dtype(df[column].dtype)
+        if not is_numeric_dtype(df[column].dtype) and not is_bool_dtype(df[column].dtype)
     ]
     if unsupported:
-        raise TypeError(
-            f"Unsupported model dtypes remain in {source_name}: {unsupported}."
-        )
+        raise TypeError(f"Unsupported model dtypes remain in {source_name}: {unsupported}.")
 
 
 def calculate_scale_pos_weight(y_train: pd.Series) -> float:
@@ -523,12 +484,8 @@ def build_feature_importance(model: LGBMClassifier) -> pd.DataFrame:
     importance = pd.DataFrame(
         {
             "feature": booster.feature_name(),
-            "importance_gain": booster.feature_importance(
-                importance_type="gain"
-            ),
-            "importance_split": booster.feature_importance(
-                importance_type="split"
-            ),
+            "importance_gain": booster.feature_importance(importance_type="gain"),
+            "importance_split": booster.feature_importance(importance_type="split"),
         }
     )
     return importance.sort_values(
@@ -564,9 +521,7 @@ def validate_category_mappings_match_reference(
     """Ensure finalization runs reuse the exact established preprocessing."""
 
     if not path.exists():
-        raise FileNotFoundError(
-            f"Reference categorical mappings not found: {path}"
-        )
+        raise FileNotFoundError(f"Reference categorical mappings not found: {path}")
     with path.open(encoding="utf-8") as handle:
         reference = json.load(handle)
 
@@ -577,9 +532,7 @@ def validate_category_mappings_match_reference(
     if reference.get("unknown_token") != UNKNOWN_TOKEN:
         raise ValueError("Reference categorical unknown token changed.")
     if reference.get("columns") != mappings:
-        raise ValueError(
-            "Train-fitted categorical mappings differ from the reference baseline."
-        )
+        raise ValueError("Train-fitted categorical mappings differ from the reference baseline.")
 
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -589,16 +542,13 @@ def build_learning_curve(
 ) -> pd.DataFrame:
     if set(evaluation_results) != {"validation"}:
         raise ValueError(
-            "Expected exactly one validation evaluation history; got "
-            f"{sorted(evaluation_results)}."
+            f"Expected exactly one validation evaluation history; got {sorted(evaluation_results)}."
         )
     history = evaluation_results["validation"]
     required_metrics = {"average_precision", "auc"}
     missing = required_metrics - set(history)
     if missing:
-        raise ValueError(
-            f"Validation learning curve lacks metrics: {sorted(missing)}."
-        )
+        raise ValueError(f"Validation learning curve lacks metrics: {sorted(missing)}.")
 
     lengths = {len(values) for values in history.values()}
     if len(lengths) != 1 or not lengths or next(iter(lengths)) <= 0:
@@ -660,9 +610,7 @@ def build_metadata(
     learning_curve_summary: dict[str, Any],
     validation_metrics: dict[str, Any],
 ) -> dict[str, Any]:
-    numeric_columns = [
-        column for column in feature_columns if column not in categorical_columns
-    ]
+    numeric_columns = [column for column in feature_columns if column not in categorical_columns]
     return {
         "model_name": "lightgbm_tabular_baseline_candidate",
         "run_name": config.run_name,
@@ -722,18 +670,12 @@ def build_metadata(
         "early_stopping_metric": "average_precision",
         "early_stopping_first_metric_only": True,
         "best_iteration": int(model.best_iteration_),
-        "actual_stopping_iteration": int(
-            learning_curve_summary["actual_stopping_iteration"]
-        ),
+        "actual_stopping_iteration": int(learning_curve_summary["actual_stopping_iteration"]),
         "best_validation_average_precision": float(
             learning_curve_summary["best_validation_average_precision"]
         ),
-        "estimator_cap_reached": bool(
-            learning_curve_summary["estimator_cap_reached"]
-        ),
-        "early_stopping_triggered": bool(
-            learning_curve_summary["early_stopping_triggered"]
-        ),
+        "estimator_cap_reached": bool(learning_curve_summary["estimator_cap_reached"]),
+        "early_stopping_triggered": bool(learning_curve_summary["early_stopping_triggered"]),
         "learning_curve_summary": learning_curve_summary,
         "validation_pr_auc": float(validation_metrics["pr_auc"]),
         "validation_roc_auc": float(validation_metrics["roc_auc"]),
@@ -742,9 +684,7 @@ def build_metadata(
         "forbidden_feature_columns": sorted(FORBIDDEN_FEATURE_COLUMNS),
         "relational_or_graph_features_used": False,
         "validation_metrics_path": repository_relative(paths.metrics),
-        "validation_predictions_path": repository_relative(
-            paths.validation_predictions
-        ),
+        "validation_predictions_path": repository_relative(paths.validation_predictions),
         "feature_importance_path": repository_relative(paths.feature_importance),
         "learning_curve_path": repository_relative(paths.learning_curve),
         "model_path": repository_relative(paths.model),
@@ -771,12 +711,8 @@ def print_training_summary(
     print(f"Validation rows: {validation_rows:,}")
     print(f"\nTrain fraud: {train_fraud:,} / {train_rows:,}")
     print(f"Train fraud rate: {train_fraud / train_rows:.6%}")
-    print(
-        f"Validation fraud: {validation_fraud:,} / {validation_rows:,}"
-    )
-    print(
-        f"Validation fraud rate: {validation_fraud / validation_rows:.6%}"
-    )
+    print(f"Validation fraud: {validation_fraud:,} / {validation_rows:,}")
+    print(f"Validation fraud rate: {validation_fraud / validation_rows:.6%}")
     print(f"\nPredictors: {n_predictors:,}")
     print(f"Categorical predictors: {n_categorical:,}")
     print(f"Numeric predictors: {n_predictors - n_categorical:,}")
@@ -789,10 +725,7 @@ def print_validation_results(
 ) -> None:
     best_iteration = int(learning_curve_summary["best_iteration"])
     print(f"\nBest iteration: {best_iteration:,}")
-    print(
-        "Actual stopping iteration: "
-        f"{learning_curve_summary['actual_stopping_iteration']:,}"
-    )
+    print(f"Actual stopping iteration: {learning_curve_summary['actual_stopping_iteration']:,}")
     print(
         "Estimator cap reached: "
         f"{'YES' if learning_curve_summary['estimator_cap_reached'] else 'NO'}"
@@ -816,9 +749,7 @@ def print_validation_results(
 
 def parse_args(argv: list[str] | None = None) -> RunConfig:
     parser = argparse.ArgumentParser(
-        description=(
-            "Train one controlled LightGBM baseline-finalization candidate."
-        )
+        description=("Train one controlled LightGBM baseline-finalization candidate.")
     )
     parser.add_argument("--run-name", required=True)
     parser.add_argument(
@@ -857,9 +788,7 @@ def main(argv: list[str] | None = None) -> None:
     train_df, validation_df, dataset_summary = load_model_dataset()
 
     feature_columns = get_feature_columns(list(train_df.columns))
-    validation_metadata = validation_df[
-        ["TransactionID", "TransactionDT", "isFraud"]
-    ].copy()
+    validation_metadata = validation_df[["TransactionID", "TransactionDT", "isFraud"]].copy()
     y_train = train_df["isFraud"].astype("int8").copy()
     y_validation = validation_df["isFraud"].astype("int8").copy()
     if set(y_train.unique()) != {0, 1} or set(y_validation.unique()) != {0, 1}:
@@ -886,9 +815,7 @@ def main(argv: list[str] | None = None) -> None:
         X_validation,
         categorical_columns,
     )
-    category_mappings_sha256 = validate_category_mappings_match_reference(
-        category_mappings
-    )
+    category_mappings_sha256 = validate_category_mappings_match_reference(category_mappings)
     assert_supported_model_dtypes(X_train, "training predictors")
     assert_supported_model_dtypes(X_validation, "validation predictors")
 
@@ -954,15 +881,11 @@ def main(argv: list[str] | None = None) -> None:
     )[:, 1]
     if len(validation_probabilities) != EXPECTED_SPLIT_COUNTS["validation"]:
         raise AssertionError(
-            "Unexpected validation prediction count: "
-            f"{len(validation_probabilities):,}."
+            f"Unexpected validation prediction count: {len(validation_probabilities):,}."
         )
     if not np.isfinite(validation_probabilities).all():
         raise AssertionError("Validation predictions contain non-finite values.")
-    if not (
-        (validation_probabilities >= 0).all()
-        and (validation_probabilities <= 1).all()
-    ):
+    if not ((validation_probabilities >= 0).all() and (validation_probabilities <= 1).all()):
         raise AssertionError("Validation predictions are outside [0, 1].")
 
     metrics = evaluate_validation(
@@ -975,20 +898,14 @@ def main(argv: list[str] | None = None) -> None:
             "weighting": config.weighting,
             "scale_pos_weight": float(scale_pos_weight),
             "maximum_estimators": int(config.n_estimators),
-            "actual_stopping_iteration": int(
-                learning_curve_summary["actual_stopping_iteration"]
-            ),
+            "actual_stopping_iteration": int(learning_curve_summary["actual_stopping_iteration"]),
             "best_iteration": int(model.best_iteration_),
             "best_validation_average_precision": float(
                 learning_curve_summary["best_validation_average_precision"]
             ),
             "early_stopping_rounds": int(config.early_stopping_rounds),
-            "early_stopping_triggered": bool(
-                learning_curve_summary["early_stopping_triggered"]
-            ),
-            "estimator_cap_reached": bool(
-                learning_curve_summary["estimator_cap_reached"]
-            ),
+            "early_stopping_triggered": bool(learning_curve_summary["early_stopping_triggered"]),
+            "estimator_cap_reached": bool(learning_curve_summary["estimator_cap_reached"]),
         }
     )
     feature_importance = build_feature_importance(model)
@@ -1043,9 +960,7 @@ def main(argv: list[str] | None = None) -> None:
         paths.learning_curve,
         CATEGORY_MAPPINGS_PATH,
     ]
-    missing_artifacts = [
-        str(path) for path in expected_artifacts if not path.exists()
-    ]
+    missing_artifacts = [str(path) for path in expected_artifacts if not path.exists()]
     if missing_artifacts:
         raise OSError(f"Expected artifacts were not created: {missing_artifacts}")
 

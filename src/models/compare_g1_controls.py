@@ -363,9 +363,7 @@ def build_summary(
                 "description": CONTROL_RUNS[name].description,
                 "pr_auc": float(payload["metrics"]["pr_auc"]),
                 "roc_auc": float(payload["metrics"]["roc_auc"]),
-                "embedding_gain_importance": payload["metadata"].get(
-                    "embedding_gain_importance"
-                ),
+                "embedding_gain_importance": payload["metadata"].get("embedding_gain_importance"),
                 "significance": {
                     label: payload["significance"][f"control_vs_{label}"]
                     for label in ("b0", "b1_card1", "g1")

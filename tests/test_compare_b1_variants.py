@@ -8,7 +8,6 @@ from pathlib import Path
 
 from src.models.compare_b1_variants import build_comparison_row, load_significance
 
-
 FAKE_SIGNIFICANCE = {
     "comparisons": {
         "b1_card1_vs_b0": {

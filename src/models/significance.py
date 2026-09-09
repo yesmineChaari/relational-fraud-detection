@@ -94,7 +94,9 @@ def load_validation_predictions(path: Path, prediction_column: str) -> pd.DataFr
     column so several variants can be merged on TransactionID without collision."""
     df = pd.read_parquet(path, columns=["TransactionID", "isFraud", "prediction"])
     if len(df) != EXPECTED_SPLIT_COUNTS["validation"]:
-        raise ValueError(f"Expected {EXPECTED_SPLIT_COUNTS['validation']:,} validation rows in {path}.")
+        raise ValueError(
+            f"Expected {EXPECTED_SPLIT_COUNTS['validation']:,} validation rows in {path}."
+        )
     return df.rename(columns={"prediction": prediction_column})
 
 

@@ -31,18 +31,17 @@ from src.features.screen_relations import (
     PROTECTED_PATHS,
     SIGNAL_MODERATE_PR_AUC_LIFT,
     best_univariate_by_relation,
-    coverage_weighted_signal,
     build_structural_screening_table,
     classify_relation,
     compute_feature_stats,
     compute_spearman_correlations,
+    coverage_weighted_signal,
     decide_candidate_selection,
     feature_names_for_relation,
     generate_relational_features,
     load_audit_reports,
     run_screening,
 )
-
 
 # ===========================================================================
 # Shared test helpers
@@ -199,12 +198,8 @@ class TestAuditMetricsFromTrainOnly:
     def test_load_audit_raises_if_file_missing(self, tmp_path, monkeypatch):
         import src.features.screen_relations as sr
 
-        monkeypatch.setattr(
-            sr, "ENTITY_DIAG_PATH", tmp_path / "nonexistent_entity.csv"
-        )
-        monkeypatch.setattr(
-            sr, "GRAPH_DIAG_PATH", tmp_path / "nonexistent_graph.csv"
-        )
+        monkeypatch.setattr(sr, "ENTITY_DIAG_PATH", tmp_path / "nonexistent_entity.csv")
+        monkeypatch.setattr(sr, "GRAPH_DIAG_PATH", tmp_path / "nonexistent_graph.csv")
         with pytest.raises(FileNotFoundError):
             load_audit_reports()
 
@@ -243,6 +238,7 @@ class TestNoTestLabelsInStageA:
     def test_classify_relation_has_no_label_parameter(self):
         """classify_relation must not accept or require isFraud data."""
         import inspect
+
         sig = inspect.signature(classify_relation)
         param_names = list(sig.parameters.keys())
         assert "label" not in param_names
@@ -251,6 +247,7 @@ class TestNoTestLabelsInStageA:
 
     def test_build_structural_screening_has_no_label_parameter(self):
         import inspect
+
         sig = inspect.signature(build_structural_screening_table)
         param_names = list(sig.parameters.keys())
         assert "label" not in param_names
@@ -285,6 +282,7 @@ class TestNoValidationPerformanceInStageA:
     def test_decide_candidate_selection_only_uses_train_discrimination(self):
         """decide_candidate_selection does not accept a val_discrimination parameter."""
         import inspect
+
         sig = inspect.signature(decide_candidate_selection)
         param_names = list(sig.parameters.keys())
         assert "val" not in " ".join(param_names)
@@ -431,8 +429,12 @@ class TestDeterministicFeatureNames:
 
     def test_feature_names_differ_across_relations(self):
         """Ensure relations produce distinct feature namespaces."""
-        all_names = [name for rel in ALL_CANDIDATE_NAMES for name in feature_names_for_relation(rel)]
-        assert len(all_names) == len(set(all_names)), "Feature names must be unique across relations."
+        all_names = [
+            name for rel in ALL_CANDIDATE_NAMES for name in feature_names_for_relation(rel)
+        ]
+        assert len(all_names) == len(set(all_names)), (
+            "Feature names must be unique across relations."
+        )
 
 
 # ===========================================================================
@@ -447,13 +449,17 @@ class TestDeterministicOutput:
         entity_df, graph_df = _make_all_audit_dfs()
         s1 = build_structural_screening_table(entity_df, graph_df)
         s2 = build_structural_screening_table(entity_df, graph_df)
-        pd.testing.assert_frame_equal(s1.sort_values("relation").reset_index(drop=True),
-                                      s2.sort_values("relation").reset_index(drop=True))
+        pd.testing.assert_frame_equal(
+            s1.sort_values("relation").reset_index(drop=True),
+            s2.sort_values("relation").reset_index(drop=True),
+        )
 
     def test_feature_generation_is_deterministic(self):
-        df = _make_source_df(n=20, group_col="card1",
-                             group_values=[1, 2, 1, 2, 1, 2, 1, 2, 1, 2,
-                                           1, 2, 1, 2, 1, 2, 1, 2, 1, 2])
+        df = _make_source_df(
+            n=20,
+            group_col="card1",
+            group_values=[1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2],
+        )
         r1 = generate_relational_features(df, "card1", ["card1"])
         r2 = generate_relational_features(df, "card1", ["card1"])
         pd.testing.assert_frame_equal(r1, r2)
@@ -462,8 +468,12 @@ class TestDeterministicOutput:
         entity_df, graph_df = _make_all_audit_dfs()
         screening_df = build_structural_screening_table(entity_df, graph_df)
         disc = [
-            {"relation": rel, "feature": feature_names_for_relation(rel)[0],
-             "pr_auc": 0.12, "roc_auc": 0.72}
+            {
+                "relation": rel,
+                "feature": feature_names_for_relation(rel)[0],
+                "pr_auc": 0.12,
+                "roc_auc": 0.72,
+            }
             for rel in ALL_CANDIDATE_NAMES
         ]
         d1 = decide_candidate_selection(screening_df, disc)
@@ -494,9 +504,7 @@ class TestProtectedArtifactsNotModified:
         assert any("feature_importance" in s for s in path_strings)
         assert any("model_dataset" in s for s in path_strings)
 
-    def test_run_screening_does_not_touch_protected_artifacts(
-        self, tmp_path, monkeypatch
-    ):
+    def test_run_screening_does_not_touch_protected_artifacts(self, tmp_path, monkeypatch):
         """End-to-end: verify file hashes of protected paths are unchanged post-run.
 
         This test is skipped if the actual dataset files are not present,
@@ -572,9 +580,7 @@ class TestDiscriminationIsComparable:
 
         assert stats["roc_auc_ascending"] < 0.5
         assert stats["direction"] == "lower_is_fraud"
-        assert stats["roc_auc_strength"] == pytest.approx(
-            abs(stats["roc_auc_ascending"] - 0.5)
-        )
+        assert stats["roc_auc_strength"] == pytest.approx(abs(stats["roc_auc_ascending"] - 0.5))
 
     def test_observed_mask_excludes_sentinel_rows_from_the_covered_tier(self):
         """Zero counts on uncovered rows are sentinels, not measured history."""
@@ -644,24 +650,17 @@ class TestPromotionGates:
                 f"{relation} was preferred despite its signal being weaker than "
                 "its grouping-key missingness."
             )
-            assert (
-                decision["promotion_gates"]["history_signal_exceeds_key_missingness"]
-                is False
-            )
+            assert decision["promotion_gates"]["history_signal_exceeds_key_missingness"] is False
 
     def test_weak_history_signal_blocks_promotion(self):
         below_moderate = SIGNAL_MODERATE_PR_AUC_LIFT - 0.1
-        selection = decide_candidate_selection(
-            self._screening(), self._disc(below_moderate), {}
-        )
+        selection = decide_candidate_selection(self._screening(), self._disc(below_moderate), {})
         for decision in selection["decisions"].values():
             assert decision["decision"] != "preferred"
 
     def test_at_most_two_relations_are_ever_preferred(self):
         """Stage B allows at most two controlled validation experiments."""
-        selection = decide_candidate_selection(
-            self._screening(), self._disc(3.0), {}
-        )
+        selection = decide_candidate_selection(self._screening(), self._disc(3.0), {})
         preferred = [
             rel for rel, d in selection["decisions"].items() if d["decision"] == "preferred"
         ]

@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import gc
+import platform
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -47,13 +48,12 @@ from typing import Any, Callable
 import lightgbm
 import numpy as np
 import pandas as pd
-import platform
 import sklearn
 from lightgbm import LGBMClassifier
 
+from src.features.build_relational_features import _feature_names
 from src.models.train_lightgbm_baseline import (
     EXPECTED_SPLIT_COUNTS,
-    METRICS_PATH as B0_METRICS_PATH,
     RANDOM_SEED,
     assert_supported_model_dtypes,
     build_feature_importance,
@@ -67,7 +67,20 @@ from src.models.train_lightgbm_baseline import (
     summarize_learning_curve,
     write_json,
 )
-from src.features.build_relational_features import _feature_names
+from src.models.train_lightgbm_baseline import (
+    METRICS_PATH as B0_METRICS_PATH,
+)
+from src.models.train_lightgbm_g1 import (
+    B1_CARD1_PROTECTED_PATHS,
+    build_g1_feature_manifest,
+    embedding_feature_names,
+    load_embedding_metadata,
+    load_g1_datasets,
+)
+from src.models.train_lightgbm_g1 import (
+    RELATION as G1_RELATION,
+)
+from src.models.train_lightgbm_g1_controls import G1_PROTECTED_PATHS
 from src.models.train_lightgbm_relational import (
     B0_PROTECTED_PATHS,
     EARLY_STOPPING_ROUNDS,
@@ -84,15 +97,6 @@ from src.models.train_lightgbm_relational import (
     snapshot_protected_artifacts,
     validate_model_columns_against_frozen_b0,
 )
-from src.models.train_lightgbm_g1 import (
-    B1_CARD1_PROTECTED_PATHS,
-    RELATION as G1_RELATION,
-    build_g1_feature_manifest,
-    embedding_feature_names,
-    load_embedding_metadata,
-    load_g1_datasets,
-)
-from src.models.train_lightgbm_g1_controls import G1_PROTECTED_PATHS
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
@@ -307,7 +311,9 @@ def run_convergence(
 ) -> None:
     """Train one (config, stop_metric) cell at an extended cap and write its artifacts."""
 
-    run = ConvergenceRun(config=config, stop_metric=stop_metric, seed=seed, n_estimators=n_estimators)
+    run = ConvergenceRun(
+        config=config, stop_metric=stop_metric, seed=seed, n_estimators=n_estimators
+    )
     label = run.label
     if skip_existing and run_is_complete(config, stop_metric, n_estimators, seed):
         print(f"[{label}] Already complete; skipping.")
@@ -334,9 +340,7 @@ def run_convergence(
     print(f"[{label}] Applying frozen categorical mappings (no fitting)...")
     apply_frozen_category_mappings(train_df, validation_df, categorical_columns, mappings)
 
-    X_train = pd.DataFrame(
-        {column: train_df.pop(column) for column in feature_columns}, copy=False
-    )
+    X_train = pd.DataFrame({column: train_df.pop(column) for column in feature_columns}, copy=False)
     X_validation = pd.DataFrame(
         {column: validation_df.pop(column) for column in feature_columns}, copy=False
     )
@@ -388,9 +392,7 @@ def run_convergence(
         maximum_estimators=n_estimators,
         stop_metric=stop_metric,
     )
-    validation_scores = model.predict_proba(
-        X_validation, num_iteration=model.best_iteration_
-    )[:, 1]
+    validation_scores = model.predict_proba(X_validation, num_iteration=model.best_iteration_)[:, 1]
     if len(validation_scores) != EXPECTED_SPLIT_COUNTS[EVALUATION_SPLIT]:
         raise AssertionError(f"[{label}] Validation prediction count is incorrect.")
     if not np.isfinite(validation_scores).all():
@@ -407,17 +409,13 @@ def run_convergence(
             "weighting": "weighted",
             "scale_pos_weight": float(scale_pos_weight),
             "maximum_estimators": int(n_estimators),
-            "actual_stopping_iteration": int(
-                learning_curve_summary["actual_stopping_iteration"]
-            ),
+            "actual_stopping_iteration": int(learning_curve_summary["actual_stopping_iteration"]),
             "best_iteration": int(model.best_iteration_),
             "best_validation_average_precision": float(
                 learning_curve_summary["best_validation_average_precision"]
             ),
             "early_stopping_rounds": EARLY_STOPPING_ROUNDS,
-            "early_stopping_triggered": bool(
-                learning_curve_summary["early_stopping_triggered"]
-            ),
+            "early_stopping_triggered": bool(learning_curve_summary["early_stopping_triggered"]),
             "estimator_cap_reached": bool(learning_curve_summary["estimator_cap_reached"]),
             "frozen_reference_maximum_estimators": int(frozen_reference["maximum_estimators"]),
             "frozen_reference_best_iteration": int(frozen_reference["best_iteration"]),
@@ -442,7 +440,9 @@ def run_convergence(
     )
     learning_curve.to_csv(paths["learning_curve"], index=False)
 
-    varied_parameters = ["n_estimators"] if seed == RANDOM_SEED else ["n_estimators", "random_state"]
+    varied_parameters = (
+        ["n_estimators"] if seed == RANDOM_SEED else ["n_estimators", "random_state"]
+    )
     metadata = {
         "experiment_name": "estimator_cap_convergence_check",
         "configuration": config,
@@ -487,8 +487,12 @@ def run_convergence(
     )
 
     expected_artifacts = [
-        paths["model"], paths["metrics"], paths["metadata"],
-        paths["feature_importance"], paths["validation_predictions"], paths["learning_curve"],
+        paths["model"],
+        paths["metrics"],
+        paths["metadata"],
+        paths["feature_importance"],
+        paths["validation_predictions"],
+        paths["learning_curve"],
     ]
     missing = [str(p) for p in expected_artifacts if not p.exists()]
     if missing:
@@ -575,7 +579,9 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Planned runs: {len(planned)}")
     for index, (config, stop_metric, seed) in enumerate(planned, start=1):
         if args.skip_existing and run_is_complete(config, stop_metric, args.max_estimators, seed):
-            print(f"({index}/{len(planned)}) SKIP {config}/stop_{stop_metric}/seed{seed}: already run.")
+            print(
+                f"({index}/{len(planned)}) SKIP {config}/stop_{stop_metric}/seed{seed}: already run."
+            )
             continue
         print(
             f"\n({index}/{len(planned)}) === {config} stop_metric={stop_metric} "

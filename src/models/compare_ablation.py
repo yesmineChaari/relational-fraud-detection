@@ -56,8 +56,8 @@ from src.models.train_lightgbm_ablation import (
     FEATURE_KEYS,
     LEAVE_ONE_OUT,
     MODES,
-    REPORT_DIR,
     RELATION,
+    REPORT_DIR,
     SINGLETON,
     resolve_run_paths,
 )
@@ -256,8 +256,7 @@ def classify_ablation_outcome(
     )
 
     panel_complete = bool(
-        len(singletons) == len(ABLATION_FEATURES)
-        and len(leave_one_out) == len(ABLATION_FEATURES)
+        len(singletons) == len(ABLATION_FEATURES) and len(leave_one_out) == len(ABLATION_FEATURES)
     )
 
     # An outcome code is a claim about both directions at once, so it may only
@@ -375,8 +374,7 @@ def main() -> None:
         "report_name": "Per-feature ablation of the card1 relational summaries",
         "relation": RELATION,
         "question": (
-            "Which of the four card1 relational summaries carries the "
-            "+0.00630 B1-card1 gain?"
+            "Which of the four card1 relational summaries carries the +0.00630 B1-card1 gain?"
         ),
         "reference_configuration": "converged (cap 15,000, stop_average_precision, seed 42)",
         "b0_converged_pr_auc": b0_pr_auc,
@@ -385,7 +383,9 @@ def main() -> None:
         "ablation_features": ABLATION_FEATURES,
         "modes": MODES,
         "panel_complete": outcome["panel_complete"],
-        "completed_runs": [{"ablation_mode": mode, "feature": feature} for mode, feature in completed],
+        "completed_runs": [
+            {"ablation_mode": mode, "feature": feature} for mode, feature in completed
+        ],
         "clean_stratum_noise_floor": noise_floor,
         "noise_floor_source": "reports/seed_variance/seed_variance_summary.json",
         "singleton_delta_vs_b0_spread": spread(singleton_deltas),

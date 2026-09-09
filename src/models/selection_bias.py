@@ -62,8 +62,7 @@ def _metric_values(curve: pd.DataFrame, metric_column: str) -> np.ndarray:
     """The metric column as a float array, validated against a curve's shape."""
     if metric_column not in curve.columns:
         raise ValueError(
-            f"Learning curve is missing metric column {metric_column!r}; "
-            f"got {list(curve.columns)}."
+            f"Learning curve is missing metric column {metric_column!r}; got {list(curve.columns)}."
         )
     if ITERATION_COLUMN not in curve.columns:
         raise ValueError(f"Learning curve is missing {ITERATION_COLUMN!r}.")
@@ -179,8 +178,7 @@ def off_metric_delta_at_selection(
         variant_stop, variant_off = variant_stop[:budget], variant_off[:budget]
 
     return float(
-        variant_off[int(np.argmax(variant_stop))]
-        - reference_off[int(np.argmax(reference_stop))]
+        variant_off[int(np.argmax(variant_stop))] - reference_off[int(np.argmax(reference_stop))]
     )
 
 
@@ -234,10 +232,6 @@ def compare_estimators(
         if noise_floor <= 0:
             raise ValueError("Noise floor must be positive.")
         result["noise_floor"] = float(noise_floor)
-        result["estimators_agree"] = bool(
-            abs(result["argmax_minus_matched"]) <= noise_floor
-        )
-        result["shift_in_noise_floors"] = float(
-            result["argmax_minus_matched"] / noise_floor
-        )
+        result["estimators_agree"] = bool(abs(result["argmax_minus_matched"]) <= noise_floor)
+        result["shift_in_noise_floors"] = float(result["argmax_minus_matched"] / noise_floor)
     return result

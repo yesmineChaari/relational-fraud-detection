@@ -11,7 +11,6 @@ import torch
 from src.graph.temporal_sampler import build_temporal_graph_index
 from src.graph.train_graphsage_encoder import (
     EMBEDDING_DIM,
-    EMBEDDINGS_PATH as FROZEN_EMBEDDINGS_PATH,
     HIDDEN_DIM,
     READOUT_NEIGHBOURHOOD_ONLY,
     READOUT_SELF_AND_NEIGHBOURHOOD,
@@ -19,6 +18,9 @@ from src.graph.train_graphsage_encoder import (
     TemporalGraphSAGEEncoder,
     run_inference,
     sample_batch_neighborhoods,
+)
+from src.graph.train_graphsage_encoder import (
+    EMBEDDINGS_PATH as FROZEN_EMBEDDINGS_PATH,
 )
 from src.graph.train_graphsage_variants import (
     CONTROL_BUDGET,
@@ -30,14 +32,14 @@ from src.graph.train_graphsage_variants import (
 )
 from src.models.compare_g1_controls import (
     VERDICT_CONFOUND,
-    build_known_limitations,
-    embedding_partition_alignment,
     VERDICT_CONTROLS,
     VERDICT_NEGATIVE_STANDS,
+    build_known_limitations,
     build_verdict,
+    embedding_partition_alignment,
     reaches_parity,
 )
-from src.models.train_lightgbm_g1 import embedding_feature_names
+from src.models.train_lightgbm_g1 import B1_CARD1_PROTECTED_PATHS, embedding_feature_names
 from src.models.train_lightgbm_g1_controls import (
     CONTROL_ORDER,
     CONTROL_RUNS,
@@ -46,7 +48,6 @@ from src.models.train_lightgbm_g1_controls import (
     permute_block_within_split,
 )
 from src.models.train_lightgbm_relational import B0_PROTECTED_PATHS
-from src.models.train_lightgbm_g1 import B1_CARD1_PROTECTED_PATHS
 
 
 def make_budget(**overrides) -> EncoderBudget:
@@ -258,9 +259,11 @@ class InferenceBatchSizeTests(unittest.TestCase):
             for entity_id in range(6)
             for k in range(12)
         ]
-        edges = pd.DataFrame(rows).sort_values(
-            ["entity_id", "TransactionDT", "node_id"], kind="mergesort"
-        ).reset_index(drop=True)
+        edges = (
+            pd.DataFrame(rows)
+            .sort_values(["entity_id", "TransactionDT", "node_id"], kind="mergesort")
+            .reset_index(drop=True)
+        )
         return build_temporal_graph_index(edges)
 
     def sample_in_batches(self, index, node_ids, batch_size, seed):
@@ -521,9 +524,7 @@ class KnownLimitationTests(unittest.TestCase):
         }
 
     def test_the_cross_fit_basis_defect_is_published(self) -> None:
-        limitations = build_known_limitations(
-            {"cross_fitted": self.cross_fitted_result(0.390, 11)}
-        )
+        limitations = build_known_limitations({"cross_fitted": self.cross_fitted_result(0.390, 11)})
         self.assertEqual(len(limitations), 1)
         entry = limitations[0]
         self.assertEqual(entry["control"], "cross_fitted")
@@ -561,9 +562,7 @@ class ControlRegistryTests(unittest.TestCase):
         }
         for control in CONTROL_RUNS.values():
             outputs = {
-                path.resolve()
-                for key, path in control.paths().items()
-                if key != "report_dir"
+                path.resolve() for key, path in control.paths().items() if key != "report_dir"
             }
             outputs.add(control.embeddings_path.resolve())
             self.assertEqual(outputs & protected, set())

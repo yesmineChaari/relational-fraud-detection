@@ -37,9 +37,7 @@ class ForwardBackwardPassTests(unittest.TestCase):
         second = run_minimal_forward_backward_pass()
 
         self.assertAlmostEqual(first["loss"], second["loss"], places=10)
-        self.assertAlmostEqual(
-            first["w2_grad_norm"], second["w2_grad_norm"], places=10
-        )
+        self.assertAlmostEqual(first["w2_grad_norm"], second["w2_grad_norm"], places=10)
 
 
 if __name__ == "__main__":

@@ -77,8 +77,8 @@ def _report_dir(relation: str) -> Path:
 # T1: Feature parquet existence and row count
 # ---------------------------------------------------------------------------
 
-class TestFeatureParquetExistence:
 
+class TestFeatureParquetExistence:
     @pytest.mark.parametrize("relation", SUPPORTED_RELATIONS)
     def test_parquet_exists(self, relation: str) -> None:
         path = _rel_output_path(relation)
@@ -103,17 +103,15 @@ class TestFeatureParquetExistence:
             pytest.skip(f"Feature parquet not generated for {relation}")
         df = pd.read_parquet(path)
         expected = ["TransactionID", *_feature_names(relation)]
-        assert list(df.columns) == expected, (
-            f"{relation}: wrong columns. Got: {list(df.columns)}"
-        )
+        assert list(df.columns) == expected, f"{relation}: wrong columns. Got: {list(df.columns)}"
 
 
 # ---------------------------------------------------------------------------
 # T2: Feature integrity — no NaNs in count features, all counts non-negative
 # ---------------------------------------------------------------------------
 
-class TestFeatureIntegrity:
 
+class TestFeatureIntegrity:
     @pytest.mark.parametrize("relation", SUPPORTED_RELATIONS)
     def test_count_features_no_nan(self, relation: str) -> None:
         path = _rel_output_path(relation)
@@ -173,8 +171,8 @@ class TestFeatureIntegrity:
 # T3: Relational metadata correctness
 # ---------------------------------------------------------------------------
 
-class TestRelationalMetadata:
 
+class TestRelationalMetadata:
     @pytest.mark.parametrize("relation", SUPPORTED_RELATIONS)
     def test_metadata_exists(self, relation: str) -> None:
         path = _rel_metadata_path(relation)
@@ -223,8 +221,8 @@ class TestRelationalMetadata:
 # T4: Model artifact existence and feature count
 # ---------------------------------------------------------------------------
 
-class TestModelArtifacts:
 
+class TestModelArtifacts:
     @pytest.mark.parametrize("relation", ["card1", "card1_card2", "card_core_addr1"])
     def test_model_file_exists(self, relation: str) -> None:
         path = _model_path(relation)
@@ -256,9 +254,7 @@ class TestModelArtifacts:
             pytest.skip(f"Metadata not yet generated for {relation}")
         with path.open() as f:
             meta = json.load(f)
-        assert meta.get("test_evaluated") is False, (
-            f"{relation}: test_evaluated must be False."
-        )
+        assert meta.get("test_evaluated") is False, f"{relation}: test_evaluated must be False."
 
     @pytest.mark.parametrize("relation", ["card1", "card1_card2"])
     def test_relational_features_in_feature_importance(self, relation: str) -> None:
@@ -294,8 +290,8 @@ class TestModelArtifacts:
 # T5: B0 protected artifacts unchanged
 # ---------------------------------------------------------------------------
 
-class TestB0ArtifactsProtected:
 
+class TestB0ArtifactsProtected:
     def test_b0_protected_paths_list_non_empty(self) -> None:
         assert len(B0_PROTECTED_PATHS) >= 3
 
@@ -314,9 +310,7 @@ class TestB0ArtifactsProtected:
         with path.open() as f:
             metrics = json.load(f)
         pr_auc = metrics.get("pr_auc", 0.0)
-        assert abs(pr_auc - 0.64914) < 0.001, (
-            f"B0 PR-AUC drifted: {pr_auc}."
-        )
+        assert abs(pr_auc - 0.64914) < 0.001, f"B0 PR-AUC drifted: {pr_auc}."
 
     def test_b1_card_core_addr1_not_overwritten(self) -> None:
         path = ROOT_DIR / "models" / "lightgbm_b1_card_core_addr1.txt"
@@ -331,17 +325,15 @@ class TestB0ArtifactsProtected:
         with path.open() as f:
             metrics = json.load(f)
         pr_auc = metrics.get("pr_auc", 0.0)
-        assert abs(pr_auc - 0.64401) < 0.001, (
-            f"B1 card_core_addr1 PR-AUC drifted: {pr_auc}."
-        )
+        assert abs(pr_auc - 0.64401) < 0.001, f"B1 card_core_addr1 PR-AUC drifted: {pr_auc}."
 
 
 # ---------------------------------------------------------------------------
 # T6: Cross-relation comparison report
 # ---------------------------------------------------------------------------
 
-class TestCrossRelationComparison:
 
+class TestCrossRelationComparison:
     def test_comparison_csv_exists(self) -> None:
         path = ROOT_DIR / "reports" / "b1" / "b1_cross_relation_comparison.csv"
         if not path.exists():
@@ -368,9 +360,7 @@ class TestCrossRelationComparison:
         with path.open() as f:
             summary = json.load(f)
         outcome_code = summary.get("outcome", {}).get("outcome_code")
-        assert outcome_code in ("A", "B", "C"), (
-            f"Unexpected outcome code: {outcome_code!r}."
-        )
+        assert outcome_code in ("A", "B", "C"), f"Unexpected outcome code: {outcome_code!r}."
 
     def test_b0_row_has_zero_delta_against_itself(self) -> None:
         """The B0 reference must come from the frozen B0 artifact, not a literal."""
@@ -416,9 +406,7 @@ class TestCrossRelationComparison:
 
         variants = summary["variants"]
         expected_any_beats = any(
-            v["validation_pr_auc"] > b0_pr_auc
-            for v in variants
-            if v["role"] != "baseline"
+            v["validation_pr_auc"] > b0_pr_auc for v in variants if v["role"] != "baseline"
         )
         assert outcome["any_beats_b0"] is expected_any_beats
         assert outcome["outcome_code"] == ("A" if expected_any_beats else outcome["outcome_code"])

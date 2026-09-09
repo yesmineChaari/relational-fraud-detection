@@ -85,9 +85,15 @@ from lightgbm import LGBMClassifier
 
 from src.features.build_relational_features import (
     EXPECTED_ROWS as RELATIONAL_EXPECTED_ROWS,
+)
+from src.features.build_relational_features import (
     _feature_names,
-    _output_path as _rel_output_path,
+)
+from src.features.build_relational_features import (
     _metadata_path as _rel_metadata_path,
+)
+from src.features.build_relational_features import (
+    _output_path as _rel_output_path,
 )
 from src.models.train_lightgbm_baseline import (
     EXPECTED_SPLIT_COUNTS,
@@ -106,6 +112,13 @@ from src.models.train_lightgbm_baseline import (
     validate_split_counts,
     write_json,
 )
+from src.models.train_lightgbm_convergence_check import (
+    DEFAULT_MAX_ESTIMATORS as CONVERGED_MAX_ESTIMATORS,
+)
+from src.models.train_lightgbm_convergence_check import (
+    resolve_run_paths as resolve_convergence_run_paths,
+)
+from src.models.train_lightgbm_g1 import B1_CARD1_PROTECTED_PATHS
 from src.models.train_lightgbm_relational import (
     B0_PROTECTED_PATHS,
     EARLY_STOPPING_ROUNDS,
@@ -122,11 +135,6 @@ from src.models.train_lightgbm_relational import (
     snapshot_protected_artifacts,
     validate_model_columns_against_frozen_b0,
     validate_relational_merge,
-)
-from src.models.train_lightgbm_g1 import B1_CARD1_PROTECTED_PATHS
-from src.models.train_lightgbm_convergence_check import (
-    DEFAULT_MAX_ESTIMATORS as CONVERGED_MAX_ESTIMATORS,
-    resolve_run_paths as resolve_convergence_run_paths,
 )
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -191,9 +199,7 @@ def resolve_feature(feature: str) -> str:
         return KEY_TO_FEATURE[feature]
     if feature in FEATURE_KEYS:
         return feature
-    raise ValueError(
-        f"Unknown ablation feature: {feature!r}. Supported: {sorted(KEY_TO_FEATURE)}."
-    )
+    raise ValueError(f"Unknown ablation feature: {feature!r}. Supported: {sorted(KEY_TO_FEATURE)}.")
 
 
 def feature_subset(mode: str, feature: str) -> list[str]:
@@ -208,15 +214,12 @@ def feature_subset(mode: str, feature: str) -> list[str]:
     expected_size = 1 if mode == SINGLETON else len(ABLATION_FEATURES) - 1
     if len(subset) != expected_size:
         raise AssertionError(
-            f"{mode} subset for {target} must hold {expected_size} feature(s); "
-            f"got {len(subset)}."
+            f"{mode} subset for {target} must hold {expected_size} feature(s); got {len(subset)}."
         )
     return subset
 
 
-def resolve_run_paths(
-    mode: str, feature: str, seed: int = RANDOM_SEED
-) -> dict[str, Path]:
+def resolve_run_paths(mode: str, feature: str, seed: int = RANDOM_SEED) -> dict[str, Path]:
     if mode not in MODES:
         raise ValueError(f"Unknown ablation mode: {mode!r}. Supported: {MODES}.")
     if seed < 0:
@@ -225,7 +228,8 @@ def resolve_run_paths(
     run_dir = REPORT_DIR / f"{mode}_{key}" / f"cap{CONVERGED_MAX_ESTIMATORS}_seed{seed}"
     return {
         "run_dir": run_dir,
-        "model": MODEL_DIR / (
+        "model": MODEL_DIR
+        / (
             f"lightgbm_ablation_{RELATION}__{mode}_{key}"
             f"_cap{CONVERGED_MAX_ESTIMATORS}_seed{seed}.txt"
         ),
@@ -317,9 +321,7 @@ def load_ablation_datasets(
     train_df, validation_df, _ = load_model_dataset()
     # Only the subset is attached: a dropped column never enters the frame, so
     # it cannot reach the model through the manifest or any later selection.
-    train_with_relations = attach_relational_features(
-        train_df, merged_index, "train", subset_names
-    )
+    train_with_relations = attach_relational_features(train_df, merged_index, "train", subset_names)
     validation_with_relations = attach_relational_features(
         validation_df, merged_index, "validation", subset_names
     )
@@ -335,9 +337,7 @@ def load_ablation_datasets(
     ):
         present = sorted(set(dropped) & set(frame.columns))
         if present:
-            raise AssertionError(
-                f"Ablated features leaked into the {frame_name} frame: {present}."
-            )
+            raise AssertionError(f"Ablated features leaked into the {frame_name} frame: {present}.")
 
     b0_features = list(b0_metadata["feature_columns"])
     validate_model_columns_against_frozen_b0(
@@ -383,8 +383,7 @@ def validate_ablation_configuration(
             )
     if actual.get("random_state") != seed:
         raise ValueError(
-            f"Ablation run must carry random_state={seed}; "
-            f"got {actual.get('random_state')!r}."
+            f"Ablation run must carry random_state={seed}; got {actual.get('random_state')!r}."
         )
     if actual.get("n_estimators") != CONVERGED_MAX_ESTIMATORS:
         raise ValueError(
@@ -440,9 +439,7 @@ def run_ablation(
     print(f"[{label}] Applying frozen categorical mappings (no fitting)...")
     apply_frozen_category_mappings(train_df, validation_df, categorical_columns, mappings)
 
-    X_train = pd.DataFrame(
-        {column: train_df.pop(column) for column in feature_columns}, copy=False
-    )
+    X_train = pd.DataFrame({column: train_df.pop(column) for column in feature_columns}, copy=False)
     X_validation = pd.DataFrame(
         {column: validation_df.pop(column) for column in feature_columns}, copy=False
     )
@@ -459,9 +456,7 @@ def run_ablation(
     scale_pos_weight = calculate_scale_pos_weight(y_train)
     model = build_lightgbm_model(scale_pos_weight, n_estimators=CONVERGED_MAX_ESTIMATORS)
     model.set_params(random_state=seed)
-    validate_ablation_configuration(
-        model, b0_metadata, feature_columns, subset_names, seed
-    )
+    validate_ablation_configuration(model, b0_metadata, feature_columns, subset_names, seed)
 
     print(
         f"[{label}] Relational features: {subset_names}  "
@@ -497,9 +492,7 @@ def run_ablation(
         maximum_estimators=CONVERGED_MAX_ESTIMATORS,
     )
 
-    validation_scores = model.predict_proba(
-        X_validation, num_iteration=model.best_iteration_
-    )[:, 1]
+    validation_scores = model.predict_proba(X_validation, num_iteration=model.best_iteration_)[:, 1]
     if len(validation_scores) != EXPECTED_SPLIT_COUNTS[EVALUATION_SPLIT]:
         raise AssertionError(f"[{label}] Validation prediction count is incorrect.")
     if not np.isfinite(validation_scores).all():
@@ -523,17 +516,13 @@ def run_ablation(
             "weighting": "weighted",
             "scale_pos_weight": float(scale_pos_weight),
             "maximum_estimators": int(CONVERGED_MAX_ESTIMATORS),
-            "actual_stopping_iteration": int(
-                learning_curve_summary["actual_stopping_iteration"]
-            ),
+            "actual_stopping_iteration": int(learning_curve_summary["actual_stopping_iteration"]),
             "best_iteration": int(model.best_iteration_),
             "best_validation_average_precision": float(
                 learning_curve_summary["best_validation_average_precision"]
             ),
             "early_stopping_rounds": EARLY_STOPPING_ROUNDS,
-            "early_stopping_triggered": bool(
-                learning_curve_summary["early_stopping_triggered"]
-            ),
+            "early_stopping_triggered": bool(learning_curve_summary["early_stopping_triggered"]),
             "estimator_cap_reached": bool(learning_curve_summary["estimator_cap_reached"]),
             "stop_metric": STOP_METRIC,
         }
@@ -671,9 +660,7 @@ def main(argv: list[str] | None = None) -> None:
 
     print(f"Planned runs: {len(planned)}")
     for index, (mode, name, seed) in enumerate(planned, start=1):
-        print(
-            f"\n({index}/{len(planned)}) === {mode} :: {FEATURE_KEYS[name]} :: seed {seed} ==="
-        )
+        print(f"\n({index}/{len(planned)}) === {mode} :: {FEATURE_KEYS[name]} :: seed {seed} ===")
         run_ablation(mode, name, seed=seed, skip_existing=args.skip_existing)
 
     print("\nAll planned runs complete.")
