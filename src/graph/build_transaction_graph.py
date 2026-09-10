@@ -15,7 +15,7 @@ Materialising that is not attempted. Instead this module stores an
 entity-to-transaction bipartite structure: one row per transaction recording
 which card1 entity it belongs to (STORAGE_RATIONALE below). This is O(N)
 edges (590,540, one per transaction) rather than O(entity_size^2), and it is
-exactly what the sampler (FRM-9) needs: for any target, restrict to its
+exactly what the temporal neighbour sampler needs: for any target, restrict to its
 entity's rows and apply the strictly-before rule at sample time. The
 temporal admissibility itself is never materialised here, by design -- see
 temporal_contract.EDGE_TEMPORAL_ADMISSIBILITY.

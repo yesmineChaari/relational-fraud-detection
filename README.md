@@ -53,6 +53,38 @@ To ensure valid scientific attribution, all experiments adhere to strict data-mi
 
 ## 3. Data Pipeline & Schema
 
+### Raw Feature Profiling (`reports/data_profile/`)
+
+Every column in both raw files was profiled before any modelling: missingness,
+cardinality, constant-column detection, numeric distributions, top categorical
+values. No column was entirely missing or constant. More usefully, the profile
+separated columns that read as **persistent entity identifiers** from those that
+read as transactional attributes.
+
+| Column | Missing % | Distinct | Read as |
+| :--- | ---: | ---: | :--- |
+| `card1` | 0.0% | 13,553 | Near-complete, identifier-scale cardinality |
+| `card2`/`card3`/`card5` | 0.3–1.5% | 114–500 | Card attributes, low missingness |
+| `card4`/`card6` | 0.3% | 4 | Network/type — refines rather than defines an entity |
+| `addr1`/`addr2` | 11.1% | 332 / 74 | Billing region |
+| `DeviceInfo` | 17.7% | 1,786 | Device string |
+| `id_30`/`id_31`/`id_33` | 2.7–49% | 75–260 | OS / browser / resolution |
+
+`card1` stood out here — before any structural testing — as the only candidate
+identity field with 0.0% missingness at identifier-like cardinality.
+`R_emaildomain` (76.8% missing) was excluded as too sparse to build history on,
+and `P_emaildomain` was a marginal candidate not pursued in favour of the card
+fields.
+
+This step was exploratory and domain-driven rather than a formal selection
+procedure. It produced the seven *candidate* entity definitions that Section 4
+then tests; it did not answer which of them works.
+
+**A clarification worth stating plainly, because it is easy to misread.**
+Profiling informed which columns to build *new relational features from*. It did
+not remove anything from the baseline. B0 keeps all 435 raw predictors
+regardless of how they profiled.
+
 ### Raw Data Ingestion & Preprocessing (`src/data/`)
 - Ingests `train_transaction.csv` (590,540 rows, 394 cols) and `train_identity.csv` (144,233 rows, 41 cols).
 - Left-joins on `TransactionID` yielding 590,540 rows and 435 tabular predictors (404 numeric, 31 categorical).
@@ -154,6 +186,9 @@ The CI column is a paired bootstrap over validation rows at the frozen models (`
    - Switching to `card1` (100% coverage) or `card1_card2` (98.42% coverage) yields a clean **+0.01103 PR-AUC recovery** over `card_core_addr1` and outperforms the tabular B0 baseline by **+0.00590 PR-AUC** on the frozen seed (outcome `A` in `reports/b1/b1_cross_relation_summary.json`). The direction of that gain is confirmed across seeds and on ROC-AUC; the magnitude is not — see Section 9. The converged figure is $+0.00630$, and a permuted-entity null control (Section 10) establishes that the gain comes from genuine entity history rather than from widening the split search by four columns.
 4. **Feature Salience**:
    - In `B1-card1`, all 4 relational features rank in the **top 7% by gain** (#14, #16, #19, #31 out of 439 total features).
+   - That says all four are *used*, not that all four are *needed*. Which of them
+     carries the gain is the subject of Section 11, and Section 12 shows the
+     answer depends on the reporting protocol and is not currently settled.
 
 ---
 
@@ -173,9 +208,21 @@ fraud-relational-ml/
 │   ├── lightgbm_baseline.txt                          # Frozen B0 LightGBM model
 │   ├── lightgbm_b1_card_core_addr1.txt                # B1 card_core_addr1 model
 │   ├── lightgbm_b1_card1.txt                          # B1 card1 model
-│   └── lightgbm_b1_card1_card2.txt                    # B1 card1_card2 model
+│   ├── lightgbm_b1_card1_card2.txt                    # B1 card1_card2 model
+│   ├── lightgbm_g1_card1.txt                          # G1 model, plus four attribution controls
+│   ├── graphsage_card1_encoder*.pt                    # Encoders: base, cross-fitted folds, variants
+│   ├── ablation/                                      # Eight ablation cells plus a five-seed panel
+│   ├── convergence_check/                             # Extended-cap and alternative-stopping runs
+│   ├── seed_variance/                                 # Five-seed B0 and B1-card1 panels
+│   └── permuted_null/                                 # Permuted-entity null control runs
 ├── reports/
 │   ├── baseline/                                      # B0 metrics, metadata, importance
+│   ├── data_profile/                                  # Column-level profile of all 435 raw predictors
+│   ├── ablation/                                      # Per-feature ablation panel & verdict
+│   ├── selection_bias/                                # Argmax exposure screen & equal-budget panel
+│   ├── stages/                                        # Cross-stage comparison table & summary
+│   ├── operating_points/                              # Calibration, alert budgets, cost sweep
+│   ├── ledger/                                        # Experiment ledger over every model artifact
 │   ├── relational_audit/                              # Entity & graph diagnostics CSVs
 │   ├── relational_screening/                          # Stage A & B screening reports & JSON
 │   │   ├── relation_screening.csv                     # Per-relation structural + signal summary
@@ -218,25 +265,49 @@ fraud-relational-ml/
 │       ├── significance.py                            # Shared paired-bootstrap module (no trainer dependency)
 │       ├── compare_b1_significance.py                 # Paired-bootstrap CIs for the three B1 comparisons
 │       ├── compare_b1_variants.py                     # Cross-variant comparison generator, consumes the CIs
-│       ├── train_lightgbm_permuted_null.py           # Permuted-entity null control runs for card1
-│       └── compare_permuted_null.py                   # Null comparison & the pre-registered verdict rule
+│       ├── train_lightgbm_permuted_null.py            # Permuted-entity null control runs for card1
+│       ├── compare_permuted_null.py                   # Null comparison & the pre-registered verdict rule
+│       ├── train_lightgbm_ablation.py                 # Singleton and leave-one-out ablation cells
+│       ├── compare_ablation.py                        # Ablation verdict under the pre-registered rule
+│       ├── summarize_ablation_seed_panel.py           # Seed panel for a single ablation variant
+│       ├── selection_bias.py                          # Argmax / matched / plateau estimators
+│       ├── compare_selection_bias.py                  # Exposure screen over every published comparison
+│       ├── rederive_ablation_at_equal_budget.py       # Equal-budget re-derivation with intervals
+│       ├── compare_converged_significance.py          # Paired-bootstrap CIs at the converged protocol
+│       ├── compare_stages.py                          # Cross-stage table spanning B0, B1 and G1
+│       ├── calibration_and_operating_points.py        # Reliability, alert budgets, cost sweep
+│       └── build_experiment_ledger.py                 # Index of every model artifact and its claims
 └── tests/
     ├── test_lightgbm_baseline.py                      # B0 unit test suite
     ├── test_lightgbm_relational.py                    # B1 merge & invariant test suite
     ├── test_relational_features.py                    # Feature calculation unit tests
-    ├── test_relational_screening.py                   # Stage A & B screening test suite (40 tests)
-    ├── test_relational_models.py                      # Multi-model verification suite (62 tests)
+    ├── test_relational_screening.py                   # Stage A & B screening test suite
+    ├── test_relational_models.py                      # Multi-model verification suite
     ├── test_temporal_sampler.py                       # Strictly-before sampling correctness
     ├── test_graphsage_encoder.py                      # Encoder & leakage-guard suite
     ├── test_lightgbm_g1.py                            # G1 merge suite
-    ├── test_g1_controls.py                            # Attribution-control suite (49 tests)
-    ├── test_seed_variance.py                          # Seed-variance & stratification suite (39 tests)
-    ├── test_convergence_check.py                      # Convergence-check & cap-decision suite (25 tests)
+    ├── test_g1_controls.py                            # Attribution-control suite
+    ├── test_seed_variance.py                          # Seed-variance & stratification suite
+    ├── test_convergence_check.py                      # Convergence-check & cap-decision suite
     ├── test_significance.py                           # Shared paired-bootstrap module suite
     ├── test_compare_b1_significance.py                # B1 significance report suite
     ├── test_compare_b1_variants.py                    # B1 comparison report's CI-consumption suite
-    └── test_permuted_null.py                          # Permutation, reference-pinning & verdict suite (41 tests)
+    ├── test_permuted_null.py                          # Permutation, reference-pinning & verdict suite
+    ├── test_ablation.py                               # Ablation manifest, isolation & verdict suite
+    ├── test_ablation_seed_panel.py                    # Ablation seed-panel stratification suite
+    ├── test_selection_bias.py                         # Estimator & exposure-screen suite
+    ├── test_compare_selection_bias.py                 # Screen classification & noise-floor sourcing
+    ├── test_rederive_ablation_at_equal_budget.py      # Equal-budget panel classification suite
+    ├── test_compare_stages.py                         # Cross-stage registry & classifier suite
+    ├── test_calibration_and_operating_points.py       # Calibration, budget & cost-sweep suite
+    └── test_experiment_ledger.py                      # Ledger completeness & disclosure suite
 ```
+
+The suite is **662 tests**: 661 in the gating run plus one throughput benchmark
+that is marked and deselected. Continuous integration runs the gating set on
+every push and pull request. On a clean checkout 47 of them skip, because the
+raw dataset is gitignored and the tests that need it guard on its presence; the
+synthetic-fixture tests that carry the suite run regardless.
 
 ---
 
@@ -289,9 +360,37 @@ python -m src.models.summarize_convergence_check
 python -m src.models.train_lightgbm_permuted_null --skip-existing
 python -m src.models.compare_permuted_null
 
-# 10. Run complete test suite
-python -m pytest tests/ -v
+# 10. Per-feature ablation of the four card1 summaries, then its verdict
+python -m src.models.train_lightgbm_ablation --skip-existing
+python -m src.models.compare_ablation
+python -m src.models.summarize_ablation_seed_panel
+
+# 11. Selection-bias screen and the equal-budget re-derivation (no refits)
+python -m src.models.compare_selection_bias
+python -m src.models.rederive_ablation_at_equal_budget
+
+# 12. Converged-protocol intervals, then the cross-stage comparison
+python -m src.models.compare_converged_significance
+python -m src.models.compare_stages
+
+# 13. Calibration and alert-budget operating points (no refits)
+python -m src.models.calibration_and_operating_points
+
+# 14. Experiment ledger over every model artifact
+python -m src.models.build_experiment_ledger
+
+# 15. Run the gating test suite
+python -m pytest -m "not benchmark" -q
 ```
+
+Step 15 excludes benchmarks deliberately. The suite contains one throughput
+measurement that asserts on wall-clock time; it is real information but it fails
+under machine load, so it is marked `benchmark` and kept out of the gating run.
+`python -m pytest -m benchmark` runs it on its own.
+
+Steps 11, 13 and 14 retrain nothing. They read persisted learning curves,
+validation predictions and metadata manifests, so they complete in seconds to
+minutes rather than hours.
 
 Both control runners accept `--skip-existing`, so an interrupted sweep resumes
 rather than recomputing blocks that are already published. The encoder variants
@@ -484,13 +583,291 @@ With sampling noise, refit noise, convergence and structural dilution all ruled 
 
 ---
 
-## 11. Next Phase
+## 11. Per-Feature Ablation of the card1 Summaries (`reports/ablation/`)
 
-The measurement-integrity questions are closed. B0, B1-card1 and G1-card1 all converge before 15,000 rounds under the existing stopping rule; run-to-run variance is measured and stratified; and the permuted-entity null rules out the last structural explanation for the relational gain. The B1-card1 result stands as the project's one positive finding: $+0.00630$ PR-AUC at convergence, attributable to genuine entity history, with its direction supported by every ROC-AUC comparison and its exact magnitude bounded by a seed standard deviation the published bootstrap interval does not see.
+The relational gain is real, but B1-card1 adds four columns at once and the
+headline number is silent on which of them does the work. The four are Spearman
+correlated $0.83$–$0.95$ among the counts and $-0.59$–$-0.75$ between counts and
+recency, which describes roughly one or two independent factors rather than four.
+
+Eight runs at cap 15,000, scored against the converged references: four
+singletons (B0 plus exactly one summary) and four leave-one-out variants
+(B1-card1 minus exactly one). Both directions are needed. Leave-one-out alone
+would return four nulls, because each column is reconstructible from the others.
+Singletons alone cannot distinguish four views of one factor from four additive
+signals.
+
+The interpretation rule was fixed before any of the eight ran: a feature
+**carries the gain** if its singleton interval excludes zero on the positive
+side, and is **non-redundant** if its leave-one-out interval excludes zero on the
+negative side.
+
+| Variant | Δ PR-AUC | 95% CI | Excludes zero |
+| :--- | ---: | :--- | :--- |
+| B0 + `prior_count` | $+0.00931$ | $[+0.00571, +0.01286]$ | yes |
+| B0 + `prior_count_7d` | $+0.00851$ | $[+0.00527, +0.01183]$ | yes |
+| B0 + `prior_count_24h` | $+0.00488$ | $[+0.00176, +0.00801]$ | yes |
+| B0 + `time_since_previous_hours` | $+0.00242$ | $[-0.00067, +0.00556]$ | no |
+| B1-card1 − `prior_count` | $+0.00055$ | $[-0.00268, +0.00372]$ | no |
+| B1-card1 − `prior_count_24h` | $+0.00548$ | $[+0.00243, +0.00851]$ | yes |
+| B1-card1 − `prior_count_7d` | $-0.00099$ | $[-0.00406, +0.00202]$ | no |
+| B1-card1 − `time_since_previous_hours` | $+0.00042$ | $[-0.00284, +0.00363]$ | no |
+
+Read under the fixed rule, this is `REDUNDANT_SUMMARIES_ANY_ONE_SUFFICES`: three
+features carry the gain alone, none is non-redundant. Recency is the odd one out
+in the expected direction — `time_since_previous_hours` is the only summary that
+fails to carry the gain on its own, so the negative count/recency correlation
+does *not* mark two genuine factors.
+
+**This verdict is contested by Section 12 and should not be quoted as settled.**
+
+---
+
+## 12. Reported PR-AUC Is a Validation Argmax (`reports/selection_bias/`)
+
+Training uses patience 200 on `average_precision`, and the reported PR-AUC is
+that curve's maximum. A run continues *precisely because* its curve keeps setting
+new maxima, so an arm that plateaus slowly is granted more rounds **and** draws
+its reported maximum from more samples of a noisy statistic. Two arms of a
+comparison are then not scored under the same amount of selection.
+
+This is not the estimator-cap defect of Section 9. It is present at a cap no run
+reaches, where early stopping fires cleanly for both arms. It is a property of
+reporting an argmax.
+
+Three estimators of the same paired delta are defined in
+`src/models/selection_bias.py`: the **argmax** the pipeline reports, the argmax
+over a **matched** budget, and the **plateau** level over a common tail window.
+Measured on the leave-one-out `prior_count_24h` cell across five seeds:
+
+| Estimator | Mean | Sign across seeds |
+| :--- | ---: | :--- |
+| Reported argmax delta | $+0.00567$ | $+++++$ |
+| Argmax over a matched budget | $+0.00099$ | $+-++-$ |
+| Plateau level, common tail | $+0.00065$ | $+--+-$ |
+| ROC-AUC at the *same* selected iteration | $-0.00192$ | $-----$ |
+
+The correlation between extra rounds granted and reported gain is $0.774$. The
+last row is decisive: at the same iteration the variant is *worse* on a metric
+the stopping rule does not watch, in five seeds out of five and roughly $6.8$
+standard deviations from zero — more stable than the PR-AUC benefit it
+contradicts. Extra rounds that bought real learning would not degrade ROC-AUC.
+
+### Which comparisons are exposed
+
+Exposure tracks the gap in curve length between the two arms, which makes it a
+cheap prospective screen.
+
+| Comparison | Round gap | Argmax | Matched | Classification |
+| :--- | ---: | ---: | ---: | :--- |
+| B1-card1 vs B0 | 76 | $+0.00630$ | $+0.00630$ | **unexposed** |
+| B0 + `prior_count_24h` vs B0 | 144 | $+0.00488$ | $+0.00488$ | **unexposed** |
+| G1-card1 vs B0 | 1,136 | $-0.02093$ | $-0.02250$ | direction holds |
+| B0 + `prior_count_7d` vs B0 | 3,126 | $+0.00851$ | $+0.00156$ | direction holds |
+| B1-card1 − `prior_count` | 2,126 | $+0.00055$ | $-0.00380$ | **in doubt** |
+| B1-card1 − `time_since_previous_hours` | 1,616 | $+0.00042$ | $-0.00355$ | **in doubt** |
+
+The two comparisons whose arms stopped within 150 rounds are exactly the two
+needing no correction, and they include the headline gain.
+
+### The localisation is undetermined
+
+Re-scoring every model in the ablation panel at one identical budget of 6,011
+trees — reachable by inference alone, since each booster was saved truncated at
+its own best iteration — and applying the *same* fixed rule gives a different
+answer: carriers shrink to `prior_count` and `prior_count_24h`, and
+`prior_count`, `prior_count_7d` and `time_since_previous_hours` all become
+non-redundant. That is `ADDITIVE_CONTRIBUTIONS`, not redundancy.
+
+Neither answer can be accepted. The argmax protocol rewards whichever arm was
+granted more rounds; the equal-budget protocol truncates that same arm. In this
+panel that arm is almost always the ablation variant, so the two protocols are
+biased in **opposite directions** and bracket the truth. Settling it requires
+refits at a budget fixed in advance.
+
+What is *not* in dispute: the $+0.00630$ headline gain (arms 76 rounds apart,
+identical under every estimator), `prior_count_24h` as a carrier, and the G1
+deficit, which widens under correction and so holds a fortiori.
+
+---
+
+## 13. Cross-Stage Comparison (`reports/stages/`)
+
+`src/models/compare_stages.py` spans B0, the three B1 variants and G1 in one
+table. Stages are registered as data carrying their own order, and the outcome
+classifier reads stage order rather than any stage name, so a future stage is a
+registration rather than an edit to the classifier.
+
+Protocol is explicit rather than assumed, because the frozen artifacts sit at
+the 6,000-estimator cap Section 9 found binding — and frozen G1 is the worst
+case, with `early_stopping_triggered` false and `estimator_cap_reached` true. It
+stopped because it ran out of budget, not because it converged. Rows therefore
+declare their protocol and are only ever compared within one.
+
+Converged-protocol intervals cost no refitting, since every converged run
+persisted its validation predictions:
+
+| Comparison | Δ PR-AUC | 95% CI | Excludes zero |
+| :--- | ---: | :--- | :--- |
+| B1-card1 vs B0 | $+0.006304$ | $[+0.002387, +0.010179]$ | yes |
+| G1-card1 vs B0 | $-0.020925$ | $[-0.026316, -0.015395]$ | yes |
+| G1-card1 vs B1-card1 | $-0.027230$ | $[-0.032748, -0.021658]$ | yes |
+
+Both protocols return the same verdict: **the graph stage fails to beat the
+tabular baseline**, frozen $-0.02272$ and converged $-0.02093$, intervals
+excluding zero either way. That conclusion no longer depends on which cap it is
+read at.
+
+---
+
+## 14. Calibration and Alert-Budget Operating Points (`reports/operating_points/`)
+
+Evaluation elsewhere in this project is ranking-only. Two things decide whether a
+model is *usable* rather than merely better, and both are measured here without
+retraining anything.
+
+### Calibration, in the opposite direction to the obvious expectation
+
+Every model is trained with `scale_pos_weight` at $27.43$. That should leave
+scores inflated. It does not: mean predicted score sits **below** the base rate
+for every variant.
+
+| Variant | Prevalence | Mean score | Ratio | ECE | Brier |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| B0 | 0.0343 | 0.0221 | 0.64 | 0.0135 | 0.0188 |
+| B1-card1 | 0.0343 | 0.0220 | 0.64 | 0.0139 | 0.0189 |
+| G1-card1 | 0.0343 | 0.0230 | 0.67 | 0.0136 | 0.0195 |
+
+The reliability curve locates it: 84,689 of 88,581 rows — 96% — fall in the
+lowest bin, where the model predicts $0.0023$ against an observed fraud rate of
+$0.0125$, under-predicting fivefold and dominating the mean. Over-confidence
+appears only in the sparse top bins. **A threshold set from the score scale on
+the assumption of inflation would be wrong in the unexpected direction.**
+
+Post-hoc recalibration is reported as a diagnostic only. Isotonic fit on
+validation and scored on validation reaches an expected calibration error of
+*exactly* zero — an artifact, not a result, since a step function fit on its own
+evaluation rows can always do that. Platt cannot fit the shape and makes Brier
+worse than the raw scores. Neither is a deployment number.
+
+### Where the relational gain actually sits
+
+The validation window spans 31.41 days at roughly 2,820 transactions per day, so
+an alert budget can be expressed as a rate.
+
+| Alerts/day | Alerts | Precision | Recall | Δ recall vs B0 | Extra frauds caught |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 10 | 314 | 0.971 | 0.100 | $+0.0003$ | $+1$ |
+| 25 | 785 | 0.952 | 0.246 | $-0.0003$ | $-1$ |
+| 100 | 3,141 | 0.595 | 0.614 | $+0.0023$ | $+7$ |
+| 200 | 6,282 | 0.361 | 0.746 | $+0.0066$ | $+20$ |
+| **400** | **12,564** | **0.206** | **0.849** | $+0.0151$ | $+46$ |
+| 800 | 25,128 | 0.110 | 0.912 | $+0.0046$ | $+14$ |
+| 1600 | 50,256 | 0.058 | 0.965 | $+0.0016$ | $+5$ |
+
+The gain is concentrated, not uniform. It peaks near 400 alerts per day and
+decays either side; at 25 alerts per day B1-card1 catches *one fewer* fraud than
+B0. A team operating at that budget would gain nothing from this feature work.
+Quoting "$+0.00630$ PR-AUC" conceals that entirely, which is why the operating
+point matters more than the integrated metric.
+
+Cost figures in `cost_sweep.csv` are swept across ratios rather than fixed, carry
+the ratio that produced them on every row, and are **per incident, not
+amount-weighted** — the persisted predictions carry no transaction amount, so a
+missed small fraud and a missed large one count identically. That is the first
+limitation to fix before these numbers inform a capacity decision.
+
+---
+
+## 15. Statistical Validation
+
+Every delta in this project is settled by the same paired bootstrap, implemented
+once in `src/models/significance.py` and reused by every comparison:
+
+- Validation row indices are resampled with replacement, 10,000 draws.
+- The **same** indices are applied to both score vectors, so the comparison is
+  paired rather than two independent bootstraps.
+- The 95% interval is the empirical percentile range of the resampled delta.
+- Seed 42 throughout, so an interval is reproducible from the committed
+  prediction files without retraining.
+
+The module reads persisted `validation_predictions.parquet` files and has no
+trainer dependency, which is what allowed the converged-protocol intervals in
+Section 13 and the equal-budget intervals in Section 12 to be produced without
+refitting anything.
+
+**One caveat that applies to every interval here.** The bootstrap measures
+sampling noise on the validation rows. It does not measure refit noise, and
+Section 9 established that refit noise is the larger of the two for these
+effects. An interval excluding zero means the difference is not an artifact of
+*which rows* were scored; it does not by itself mean the difference survives
+retraining.
+
+---
+
+## 16. Experiment Ledger (`reports/ledger/`)
+
+Fifty-three model artifacts now sit under `models/`. The ledger indexes every one
+of them with its stage, role, purpose, the claims resting on it, its limitations
+and — explicitly — what it must not be used for.
+
+Facts are read from each run's own manifests at generation time rather than
+transcribed, so the ledger cannot drift from the artifacts it describes. Only the
+editorial layer is authored. Panel runs are matched by family pattern, and an
+artifact matching no family raises rather than being silently omitted, which is
+what makes coverage a property rather than a claim.
+
+Stated on every entry: these are research models trained on a 2019 competition
+dataset, selected on validation, with output scores that are not probabilities.
+**None is a deployable fraud model**, and none has been evaluated on the held-out
+test split.
+
+---
+
+## 17. Known Limitations
+
+1. **The cross-fitting control is defective.** Recorded rather than hidden in
+   Section 8: the folds were trained from different encoder initialisations, so
+   the control confounds cross-fitting with initialisation variance.
+2. **The frozen artifacts are not at convergence.** Deliberate — they are kept at
+   the 6,000-round cap so published numbers remain reproducible — but it means
+   frozen figures understate their models, and frozen G1 most of all. Quote the
+   converged deficit of $-0.02093$, never the frozen $-0.02272$.
+3. **Seed variance exceeds the published bootstrap intervals.** The clean-stratum
+   estimate for the B1 gain is $+0.00626 \pm 0.00051$; the magnitude is not
+   quotable to three decimals from a single run.
+4. **The within-block localisation is undetermined**, per Section 12. Two
+   protocols give two verdicts and bracket the answer.
+5. **The encoder budget never converged.** The extended-budget control improved
+   on the original encoder without plateauing, so the G1 encoder was still
+   improving when training stopped.
+6. **The test partition has never been read.** Every number in this document is a
+   validation number.
+7. **Residual floating-point non-determinism** means metrics may differ in the
+   last decimal places across machines.
+
+---
+
+## 18. Next Phase
+
+The measurement-integrity questions are closed. B0, B1-card1 and G1-card1 all
+converge before 15,000 rounds; run-to-run variance is measured and stratified;
+the permuted-entity null rules out the last structural explanation for the
+relational gain; and the estimator itself has now been screened for selection
+bias.
+
+The B1-card1 result stands as the project's one positive finding: $+0.00630$
+PR-AUC at convergence, attributable to genuine entity history, unexposed to the
+argmax bias, and concentrated near a budget of 400 alerts per day.
 
 Remaining work, in priority order:
 
-1. **Per-feature ablation of the four relational summaries.** The gain is established as real but not localised: the four features are correlated $0.83$–$0.95$ and share $+0.00630$ between them. Runs at cap 15,000 with `average_precision` patience, scored against the converged references.
-2. **Corrected cross-fitting control** with a shared encoder initialisation, repairing the defect recorded in Section 8. Independent of the B1 line.
-3. **One-shot final test protocol**, once the ablation settles. The test partition has never been read and is evaluated exactly once, under a protocol written before it is opened.
-4. **Combined multi-relation variant.** Low priority: card1 and card1_card2 are not distinguishable from each other on the paired bootstrap, so little is expected from combining them.
+1. **Settle the ablation localisation** with refits at a budget fixed in advance.
+   Two protocols currently disagree and bracket the answer; no further reading of
+   existing artifacts will decide it. Eight sequential fits.
+2. **Corrected cross-fitting control** with a shared encoder initialisation,
+   repairing the defect in Section 8. Independent of the B1 line.
+3. **One-shot final test protocol**, once the localisation settles. The test
+   partition is read exactly once, under a protocol written before it is opened.
+4. **Combined multi-relation variant.** Low priority: `card1` and `card1_card2`
+   are not distinguishable on the paired bootstrap, so little is expected.

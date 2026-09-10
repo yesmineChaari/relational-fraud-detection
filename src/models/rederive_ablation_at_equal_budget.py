@@ -114,7 +114,7 @@ def metrics_paths() -> dict[str, Path]:
 
 
 def classify_panel(table: pd.DataFrame) -> tuple[list[str], list[str], str]:
-    """The FRM-25 rule applied verbatim to whatever estimator produced `table`.
+    """The published ablation rule, applied verbatim to whatever estimator produced `table`.
 
     Kept identical to the published rule on purpose: this module changes the
     protocol, never the interpretation, so the two panels differ in exactly one

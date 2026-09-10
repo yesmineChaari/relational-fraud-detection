@@ -150,7 +150,7 @@ def build_registry() -> list[dict[str, Any]]:
     """Every published comparison, as (label, reference, variant) run directories.
 
     Data-driven so a future stage is a registration rather than an edit to the
-    classifier -- the same property FRM-13 asks of the comparison layer.
+    classifier -- the same property the cross-stage comparison layer needs.
     """
     registry: list[dict[str, Any]] = [
         {

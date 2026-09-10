@@ -95,7 +95,7 @@ never relaxed to `<=` at any hop.
 The encoder is trained inductively (`TRAINING_REGIME`): it computes a node's
 embedding purely from its own features and its sampled neighbours' features,
 never from a learned per-node embedding table. This is required by G1's own
-scope (FRM-10: an inductive GraphSAGE encoder) and by the dataset's
+scope (an inductive GraphSAGE encoder) and by the dataset's
 mechanics — validation and test nodes must be embeddable without having been
 seen at training time.
 
