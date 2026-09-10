@@ -361,68 +361,79 @@ pip install -r requirements.txt
 ```
 
 ### Reproduce Feature Generation & Training
+
+The orchestrator covers the core pipeline: raw-input verification, profiling,
+the temporal split, the model dataset, the relational audit, screening, feature
+generation and the B1 training and comparison. It fixes the stage ordering in
+one place and checks prerequisites before starting, so skipping a step reports
+*which stage* is missing rather than which file.
+
+Four of those stages -- profiling, the temporal split, the model dataset and the
+relational audit -- were never in this guide, which previously began at
+screening and so could not be followed from a clean checkout.
+
 ```bash
-# 0. Verify the raw inputs are present, complete and the expected files
-python -m src.data.verify_raw_inputs
+# Everything from raw inputs to the B1 comparison, in one command.
+# Prerequisites are checked before any work starts, and a stage whose outputs
+# already exist is skipped unless --force is passed.
+python -m src.pipeline --all
 
-# 1. Train-only relation screening (Stage A; no validation is read)
-python -m src.features.screen_relations
+# Inspect what the pipeline will do, without running it
+python -m src.pipeline --list
+python -m src.pipeline --all --dry-run
 
-# 2. Build relational features for the relations it prefers
-python -m src.features.build_relational_features --relation card1
-python -m src.features.build_relational_features --relation card1_card2
+# Run one stage, or resume from one
+python -m src.pipeline --stage screening
+python -m src.pipeline --from relational_features
+python -m src.pipeline --stage train_b1 --force
 
-# 3. Train B1 models
-python -m src.models.train_lightgbm_relational --relation card1
-python -m src.models.train_lightgbm_relational --relation card1_card2
+# --- Beyond the core pipeline: the investigation stages, run directly. ---
+# These are deliberately not orchestrated; each is a separate enquiry rather
+# than a step every reproduction must take.
 
-# 4. Paired-bootstrap CIs for the B1 comparisons, then the comparison report
-python -m src.models.compare_b1_significance
-python -m src.models.compare_b1_variants
-
-# 5. Build the card1 graph, train the G1 encoder, and run G1
+# 1. Build the card1 graph, train the G1 encoder, and run G1
 python -m src.graph.build_transaction_graph
 python -m src.graph.train_graphsage_encoder
 python -m src.models.train_lightgbm_g1
 
-# 6. G1 attribution controls, then the comparison and pre-agreed verdict
+# 2. G1 attribution controls, then the comparison and pre-agreed verdict
 python -m src.graph.train_graphsage_variants --skip-existing
 python -m src.models.train_lightgbm_g1_controls --skip-existing
 python -m src.models.compare_g1_controls
 
-# 7. Seed-variance panel, then its report
+# 3. Seed-variance panel, then its report
 python -m src.models.train_seed_variants --skip-existing
 python -m src.models.summarize_seed_variance
 
-# 8. Estimator-cap convergence check, then its report
+# 4. Estimator-cap convergence check, then its report
 python -m src.models.train_lightgbm_convergence_check --skip-existing
 python -m src.models.train_lightgbm_convergence_check --config b0 --config b1_card1 --stop-metric auc --skip-existing
 python -m src.models.summarize_convergence_check
 
-# 9. Permuted-entity null control for the B1-card1 gain, then its verdict
+# 5. Permuted-entity null control for the B1-card1 gain, then its verdict
 python -m src.models.train_lightgbm_permuted_null --skip-existing
 python -m src.models.compare_permuted_null
 
-# 10. Per-feature ablation of the four card1 summaries, then its verdict
+# 6. Per-feature ablation of the four card1 summaries, then its verdict
 python -m src.models.train_lightgbm_ablation --skip-existing
 python -m src.models.compare_ablation
 python -m src.models.summarize_ablation_seed_panel
 
-# 11. Selection-bias screen and the equal-budget re-derivation (no refits)
+# 7. Selection-bias screen and the equal-budget re-derivation (no refits)
 python -m src.models.compare_selection_bias
 python -m src.models.rederive_ablation_at_equal_budget
 
-# 12. Converged-protocol intervals, then the cross-stage comparison
+# 8. Converged-protocol intervals, then the cross-stage comparison
 python -m src.models.compare_converged_significance
 python -m src.models.compare_stages
 
-# 13. Calibration and alert-budget operating points (no refits)
+# 9. Calibration and alert-budget operating points (no refits)
 python -m src.models.calibration_and_operating_points
 
-# 14. Experiment ledger over every model artifact
+# 10. Experiment ledger over every model artifact
 python -m src.models.build_experiment_ledger
 
-# 15. Run the gating test suite
+# 11. Run the gating test suite
 python -m pytest -m "not benchmark" -q
 ```
 
