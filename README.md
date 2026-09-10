@@ -214,7 +214,8 @@ fraud-relational-ml/
 │   ├── ablation/                                      # Eight ablation cells plus a five-seed panel
 │   ├── convergence_check/                             # Extended-cap and alternative-stopping runs
 │   ├── seed_variance/                                 # Five-seed B0 and B1-card1 panels
-│   └── permuted_null/                                 # Permuted-entity null control runs
+│   ├── permuted_null/                                 # Permuted-entity null control runs
+│   └── fixed_budget/                                  # Ablation refits at 10,000 trees, no early stopping
 ├── configs/
 │   └── screening.json                                 # Stage A/B screening thresholds (policy, not invariants)
 ├── reports/
@@ -222,6 +223,7 @@ fraud-relational-ml/
 │   ├── data_profile/                                  # Column-level profile of all 435 raw predictors
 │   ├── ablation/                                      # Per-feature ablation panel & verdict
 │   ├── selection_bias/                                # Argmax exposure screen & equal-budget panel
+│   ├── fixed_budget/                                  # Fixed-budget ablation refits, bracket & verdict
 │   ├── stages/                                        # Cross-stage comparison table & summary
 │   ├── operating_points/                              # Calibration, alert budgets, cost sweep
 │   ├── ledger/                                        # Experiment ledger over every model artifact
@@ -275,6 +277,8 @@ fraud-relational-ml/
 │       ├── selection_bias.py                          # Argmax / matched / plateau estimators
 │       ├── compare_selection_bias.py                  # Exposure screen over every published comparison
 │       ├── rederive_ablation_at_equal_budget.py       # Equal-budget re-derivation with intervals
+│       ├── train_ablation_fixed_budget.py             # Ablation refits at a budget fixed in advance
+│       ├── compare_fixed_budget_ablation.py           # Fixed-budget verdict beside both earlier protocols
 │       ├── compare_converged_significance.py          # Paired-bootstrap CIs at the converged protocol
 │       ├── compare_stages.py                          # Cross-stage table spanning B0, B1 and G1
 │       ├── calibration_and_operating_points.py        # Reliability, alert budgets, cost sweep
@@ -300,6 +304,8 @@ fraud-relational-ml/
     ├── test_selection_bias.py                         # Estimator & exposure-screen suite
     ├── test_compare_selection_bias.py                 # Screen classification & noise-floor sourcing
     ├── test_rederive_ablation_at_equal_budget.py      # Equal-budget panel classification suite
+    ├── test_fixed_budget_ablation.py                  # Pre-registered budget, run plan & resume suite
+    ├── test_compare_fixed_budget_ablation.py          # Fixed-budget verdict & bracket suite
     ├── test_compare_stages.py                         # Cross-stage registry & classifier suite
     ├── test_calibration_and_operating_points.py       # Calibration, budget & cost-sweep suite
     └── test_experiment_ledger.py                      # Ledger completeness & disclosure suite
@@ -423,21 +429,26 @@ python -m src.models.summarize_ablation_seed_panel
 python -m src.models.compare_selection_bias
 python -m src.models.rederive_ablation_at_equal_budget
 
-# 8. Converged-protocol intervals, then the cross-stage comparison
+# 8. Ablation refits at a budget fixed in advance (10,000 trees, no early
+#    stopping), then the verdict against both earlier protocols
+python -m src.models.train_ablation_fixed_budget --skip-existing
+python -m src.models.compare_fixed_budget_ablation
+
+# 9. Converged-protocol intervals, then the cross-stage comparison
 python -m src.models.compare_converged_significance
 python -m src.models.compare_stages
 
-# 9. Calibration and alert-budget operating points (no refits)
+# 10. Calibration and alert-budget operating points (no refits)
 python -m src.models.calibration_and_operating_points
 
-# 10. Experiment ledger over every model artifact
+# 11. Experiment ledger over every model artifact
 python -m src.models.build_experiment_ledger
 
-# 11. Run the gating test suite
+# 12. Run the gating test suite
 python -m pytest -m "not benchmark" -q
 ```
 
-Step 15 excludes benchmarks deliberately. The suite contains one throughput
+Step 12 excludes benchmarks deliberately. The suite contains one throughput
 measurement that asserts on wall-clock time; it is real information but it fails
 under machine load, so it is marked `benchmark` and kept out of the gating run.
 `python -m pytest -m benchmark` runs it on its own.
@@ -673,7 +684,9 @@ in the expected direction — `time_since_previous_hours` is the only summary th
 fails to carry the gain on its own, so the negative count/recency correlation
 does *not* mark two genuine factors.
 
-**This verdict is contested by Section 12 and should not be quoted as settled.**
+**This verdict is superseded.** Refits at a budget fixed in advance (end of
+Section 12) give `ADDITIVE_CONTRIBUTIONS`. The published figures are kept above
+unchanged so the reader can see what the correction replaced.
 
 ---
 
@@ -724,7 +737,7 @@ cheap prospective screen.
 The two comparisons whose arms stopped within 150 rounds are exactly the two
 needing no correction, and they include the headline gain.
 
-### The localisation is undetermined
+### Two protocols bracketed the localisation
 
 Re-scoring every model in the ablation panel at one identical budget of 6,011
 trees — reachable by inference alone, since each booster was saved truncated at
@@ -742,6 +755,52 @@ refits at a budget fixed in advance.
 What is *not* in dispute: the $+0.00630$ headline gain (arms 76 rounds apart,
 identical under every estimator), `prior_count_24h` as a carrier, and the G1
 deficit, which widens under correction and so holds a fortiori.
+
+### Settled at a budget fixed in advance (`reports/fixed_budget/`)
+
+Ten refits (both references and all eight cells) each trained exactly 10,000
+rounds with early stopping disabled and were read at round 10,000. The budget
+was registered before any run: it sits above the highest best iteration anywhere
+in the panel (9,137), so no arm is truncated and none is selected on its own
+curve. The frozen B0 parameters, seed 42, the paired bootstrap and the
+interpretation rule are all unchanged, so the protocol is the only difference.
+
+| Variant | Argmax | Equal budget (6,011) | Fixed budget (10,000) | 95% CI, fixed budget | Excludes zero |
+| :--- | ---: | ---: | ---: | :--- | :--- |
+| B0 + `prior_count` | $+0.00931$ | $+0.00697$ | $+0.00608$ | $[+0.00273, +0.00931]$ | yes |
+| B0 + `prior_count_24h` | $+0.00488$ | $+0.00434$ | $+0.00452$ | $[+0.00169, +0.00740]$ | yes |
+| B0 + `prior_count_7d` | $+0.00851$ | $+0.00088$ | $+0.00457$ | $[+0.00162, +0.00756]$ | yes |
+| B0 + `time_since_previous_hours` | $+0.00242$ | $-0.00196$ | $-0.00114$ | $[-0.00404, +0.00187]$ | no |
+| B1-card1 − `prior_count` | $+0.00055$ | $-0.00429$ | $-0.00411$ | $[-0.00694, -0.00128]$ | yes |
+| B1-card1 − `prior_count_24h` | $+0.00548$ | $+0.00080$ | $+0.00138$ | $[-0.00132, +0.00410]$ | no |
+| B1-card1 − `prior_count_7d` | $-0.00099$ | $-0.00380$ | $-0.00464$ | $[-0.00731, -0.00201]$ | yes |
+| B1-card1 − `time_since_previous_hours` | $+0.00042$ | $-0.00385$ | $-0.00257$ | $[-0.00540, +0.00031]$ | no |
+
+Under the fixed rule, `prior_count`, `prior_count_24h` and `prior_count_7d`
+carry the gain, and `prior_count` and `prior_count_7d` are non-redundant. That is
+`ADDITIVE_CONTRIBUTIONS`, the equal-budget outcome. By the interpretation
+registered before the refits, **the redundancy verdict of Section 11 is
+superseded**.
+
+The outcome code matches the equal-budget reading, but the feature sets differ
+from it in two places. `prior_count_7d` carries the gain again: its singleton
+had the latest optimum in the panel, so 6,011 trees truncated it furthest. And
+`time_since_previous_hours` just misses non-redundancy (upper bound
+$+0.00031$). The count summaries do the work; recency adds nothing alone and at
+most a marginal amount alongside them.
+
+Two checks hold. ROC-AUC, the off-metric that exposed the argmax artifact,
+agrees in sign on every significant cell. And the argmax panel's most anomalous
+cell, where dropping `prior_count_24h` *improved* B1-card1 by $+0.00548$,
+shrinks to $+0.00138$ and is no longer significant. At the same budget the
+B1-card1 − B0 point delta is $+0.00720$ (not bootstrapped), the same direction
+and a similar size as the headline.
+
+The consequence registered in advance follows: the summaries are not
+interchangeable views of one factor, so a learned representation meant to
+recover the B1-card1 gain has at least two count factors to reproduce. The panel
+is one seed, as the published one was, so its magnitudes carry the run-to-run
+variance of Section 9.
 
 ---
 
@@ -861,7 +920,7 @@ retraining.
 
 ## 16. Experiment Ledger (`reports/ledger/`)
 
-Fifty-three model artifacts now sit under `models/`. The ledger indexes every one
+Sixty-three model artifacts now sit under `models/`. The ledger indexes every one
 of them with its stage, role, purpose, the claims resting on it, its limitations
 and — explicitly — what it must not be used for.
 
@@ -890,8 +949,10 @@ test split.
 3. **Seed variance exceeds the published bootstrap intervals.** The clean-stratum
    estimate for the B1 gain is $+0.00626 \pm 0.00051$; the magnitude is not
    quotable to three decimals from a single run.
-4. **The within-block localisation is undetermined**, per Section 12. Two
-   protocols give two verdicts and bracket the answer.
+4. **The within-block localisation rests on one seed.** Section 12 settles it as
+   additive at a budget fixed in advance, but on seed 42 alone, and
+   `time_since_previous_hours` misses non-redundancy by a margin ($+0.00031$ at
+   the upper bound) smaller than the seed-to-seed spread of the B1 gain.
 5. **The encoder budget never converged.** The extended-budget control improved
    on the original encoder without plateauing, so the G1 encoder was still
    improving when training stopped.
@@ -907,8 +968,9 @@ test split.
 The measurement-integrity questions are closed. B0, B1-card1 and G1-card1 all
 converge before 15,000 rounds; run-to-run variance is measured and stratified;
 the permuted-entity null rules out the last structural explanation for the
-relational gain; and the estimator itself has now been screened for selection
-bias.
+relational gain; the estimator itself has been screened for selection bias; and
+the ablation localisation is settled at a budget fixed in advance, with the
+count summaries contributing additively rather than redundantly.
 
 The B1-card1 result stands as the project's one positive finding: $+0.00630$
 PR-AUC at convergence, attributable to genuine entity history, unexposed to the
@@ -916,12 +978,13 @@ argmax bias, and concentrated near a budget of 400 alerts per day.
 
 Remaining work, in priority order:
 
-1. **Settle the ablation localisation** with refits at a budget fixed in advance.
-   Two protocols currently disagree and bracket the answer; no further reading of
-   existing artifacts will decide it. Eight sequential fits.
-2. **Corrected cross-fitting control** with a shared encoder initialisation,
+1. **Corrected cross-fitting control** with a shared encoder initialisation,
    repairing the defect in Section 8. Independent of the B1 line.
-3. **One-shot final test protocol**, once the localisation settles. The test
-   partition is read exactly once, under a protocol written before it is opened.
+2. **One-shot final test protocol.** The localisation has settled, so its stated
+   precondition is met. The test partition is read exactly once, under a
+   protocol written before it is opened.
+3. **Revisit the graph-stage recovery target.** With the summaries additive, a
+   representation meant to recover the B1-card1 gain has at least two count
+   factors to reproduce (`prior_count` and `prior_count_7d`), not one.
 4. **Combined multi-relation variant.** Low priority: `card1` and `card1_card2`
    are not distinguishable on the paired bootstrap, so little is expected.

@@ -1,0 +1,59 @@
+{
+  "model": "fixed_budget_card1",
+  "evaluation_split": "validation",
+  "n_transactions": 88581,
+  "n_fraud": 3042,
+  "fraud_rate": 0.03434145019812375,
+  "pr_auc": 0.6587438385691176,
+  "roc_auc": 0.9252031625362009,
+  "ranking_metrics": {
+    "top_0.5_pct": {
+      "fraction": 0.005,
+      "k": 443,
+      "frauds_found": 426,
+      "precision": 0.9616252821670429,
+      "recall": 0.14003944773175542
+    },
+    "top_1_pct": {
+      "fraction": 0.01,
+      "k": 886,
+      "frauds_found": 842,
+      "precision": 0.9503386004514672,
+      "recall": 0.2767915844838922
+    },
+    "top_2_pct": {
+      "fraction": 0.02,
+      "k": 1772,
+      "frauds_found": 1470,
+      "precision": 0.8295711060948081,
+      "recall": 0.4832347140039448
+    },
+    "top_5_pct": {
+      "fraction": 0.05,
+      "k": 4430,
+      "frauds_found": 2090,
+      "precision": 0.4717832957110609,
+      "recall": 0.6870479947403024
+    }
+  },
+  "test_evaluated": false,
+  "relation": "card1",
+  "protocol": "fixed_budget_no_early_stopping",
+  "run": "singleton_prior_count_7d",
+  "ablation_mode": "singleton",
+  "ablated_feature": "card1_prior_count_7d",
+  "relational_features_used": [
+    "card1_prior_count_7d"
+  ],
+  "reference_configuration": "b0",
+  "number_of_predictors": 436,
+  "random_seed": 42,
+  "weighting": "weighted",
+  "scale_pos_weight": 27.434310083918007,
+  "fixed_budget_trees": 10000,
+  "reported_iteration": 10000,
+  "early_stopping_used": false,
+  "stop_metric": null,
+  "argmax_iteration_not_used": 9929,
+  "argmax_average_precision_not_used": 0.6588425328448967
+}

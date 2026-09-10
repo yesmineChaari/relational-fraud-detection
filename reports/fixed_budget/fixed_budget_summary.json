@@ -1,0 +1,35 @@
+{
+  "report_name": "Card1 ablation at a budget fixed in advance",
+  "question": "Which of the four card1 summaries carries the relational gain, when no arm is selected by watching a validation curve?",
+  "protocol": "fixed_budget_no_early_stopping",
+  "fixed_budget_trees": 10000,
+  "early_stopping_used": false,
+  "interpretation_rule": "Fixed before the panel was trained. The published ablation rule is applied verbatim: a feature carries the gain if its singleton interval excludes zero on the positive side, and is non-redundant if its leave-one-out interval excludes zero on the negative side. If the fixed-budget outcome matches the argmax verdict the published result stands; if it matches the equal-budget verdict the published result is superseded; if it matches neither, the gain is real but not localisable at this panel size, and that is the finding.",
+  "rule_source": "imported verbatim from the equal-budget module, not restated",
+  "features_carrying_the_gain": [
+    "prior_count",
+    "prior_count_24h",
+    "prior_count_7d"
+  ],
+  "non_redundant_features": [
+    "prior_count",
+    "prior_count_7d"
+  ],
+  "outcome_code": "ADDITIVE_CONTRIBUTIONS",
+  "verdict": "FIXED_BUDGET_SUPERSEDES_PUBLISHED_VERDICT",
+  "conclusion": "The fixed-budget panel reproduces the equal-budget outcome. The published localisation rested on the argmax convention and is superseded: the summaries contribute additively rather than being redundant views any one of which suffices.",
+  "prior_protocols": {
+    "argmax": "REDUNDANT_SUMMARIES_ANY_ONE_SUFFICES",
+    "equal_budget_6011": "ADDITIVE_CONTRIBUTIONS"
+  },
+  "significant_cells_where_roc_auc_disagrees": [],
+  "off_metric_note": "ROC-AUC is not the quantity any protocol selected on. A significant PR-AUC delta whose ROC-AUC delta has the opposite sign would be evidence about the stopping rule rather than the predictors.",
+  "comparison_table_path": "reports/fixed_budget/fixed_budget_comparison.csv",
+  "n_cells": 8,
+  "test_evaluated": false,
+  "versions": {
+    "numpy": "2.5.2",
+    "pandas": "3.0.5"
+  },
+  "generated_at_utc": "2026-09-10T19:30:03.077624+00:00"
+}

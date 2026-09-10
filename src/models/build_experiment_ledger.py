@@ -2,7 +2,7 @@
 
 Each model already has a thorough metadata manifest beside it -- feature lists,
 mapping hashes, split counts, frozen parameters. What was missing is the layer
-above: a reader opening `models/` sees fifty-three files and four near-identical
+above: a reader opening `models/` sees sixty-three files and four near-identical
 baseline names, with nothing saying which is the frozen baseline, which are the
 alternatives it was chosen over, and which published claims rest on which file.
 
@@ -14,9 +14,9 @@ metadata JSON at generation time, never transcribed. Only the editorial layer --
 role, purpose, limitations, what the artifact must not be used for -- lives in
 this file, because no manifest can carry it.
 
-**Annotations are keyed by family, and completeness is enforced.** Thirty-four
+**Annotations are keyed by family, and completeness is enforced.** Forty-four
 of the artifacts are panel runs: eight ablation cells, five-seed variance
-panels, convergence checks, permuted nulls. Per-file prose for those would be
+panels, convergence checks, permuted nulls, fixed-budget refits. Per-file prose for those would be
 noise, so families are matched by pattern. Any model file matching no family
 fails the completeness check rather than being silently omitted, which is what
 makes "every file has an entry" a property rather than a claim.
@@ -54,7 +54,7 @@ LEDGER_JSON = OUTPUT_DIR / "experiment_ledger.json"
 MODEL_SUFFIXES = {".txt", ".pt"}
 
 # Applies to every artifact here, so it is stated once rather than repeated
-# fifty-three times.
+# sixty-three times.
 UNIVERSAL_LIMITATIONS = [
     "Trained on the 2019 IEEE-CIS competition dataset; nothing here has been "
     "validated against current fraud patterns.",
@@ -199,8 +199,8 @@ FAMILIES: list[dict[str, Any]] = [
             "to the baseline; leave-one-out cells remove one from the full set."
         ),
         "claims": [
-            "The within-block localisation, which is currently undetermined: the "
-            "argmax and equal-budget protocols disagree and bracket the answer"
+            "The published redundancy verdict, since superseded by the "
+            "fixed-budget refits; kept as the argmax endpoint of the bracket"
         ],
         "metrics": lambda m: REPORTS_DIR
         / "ablation"
@@ -292,6 +292,34 @@ FAMILIES: list[dict[str, Any]] = [
         / "card1"
         / f"permseed_{m.group(1)}"
         / "cap15000"
+        / "metadata.json",
+    },
+    {
+        "family": "fixed_budget_ablation",
+        "pattern": r"^fixed_budget/lightgbm_fixed_card1__(\w+?)_fixed(\d+)_seed(\d+)\.txt$",
+        "stage": "B1",
+        "role": "fixed_budget_panel",
+        "purpose": (
+            "The ablation panel and its two references refit at 10,000 rounds "
+            "with early stopping disabled and read at that round, so no arm's "
+            "figure depends on how many rounds it was granted. The budget was "
+            "registered before any run, above every optimum in the panel."
+        ),
+        "claims": [
+            "The within-block localisation: ADDITIVE_CONTRIBUTIONS, superseding "
+            "the published redundancy verdict"
+        ],
+        "metrics": lambda m: REPORTS_DIR
+        / "fixed_budget"
+        / "card1"
+        / m.group(1)
+        / f"fixed{m.group(2)}_seed{m.group(3)}"
+        / "metrics.json",
+        "metadata": lambda m: REPORTS_DIR
+        / "fixed_budget"
+        / "card1"
+        / m.group(1)
+        / f"fixed{m.group(2)}_seed{m.group(3)}"
         / "metadata.json",
     },
 ]
