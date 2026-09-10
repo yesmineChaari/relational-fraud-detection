@@ -1,0 +1,6 @@
+{
+  "claimed_at_utc": "2026-09-10T20:45:09.463876+00:00",
+  "protocol_version": 1,
+  "protocol_commit": "c9f896ee4c9482725ad581157e7601c39ae83fb5",
+  "note": "Written before the test partition was opened. Its presence means the one-shot read is spent, whether or not the run completed."
+}

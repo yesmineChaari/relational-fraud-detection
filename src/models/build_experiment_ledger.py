@@ -23,8 +23,9 @@ makes "every file has an entry" a property rather than a claim.
 
 The ledger deliberately records what these artifacts are *not* for. They are
 research models trained on a 2019 competition dataset, selected on validation,
-with output scores that are not probabilities. None is a deployable fraud model
-and none has been evaluated on the held-out test split.
+with output scores that are not probabilities. None is a deployable fraud model.
+The held-out test split was read once, for B0 and B1-card1 only, into its own
+report tree; no model manifest indexed here records a test evaluation.
 
 Outputs:
   reports/ledger/experiment_ledger.csv
@@ -58,8 +59,9 @@ MODEL_SUFFIXES = {".txt", ".pt"}
 UNIVERSAL_LIMITATIONS = [
     "Trained on the 2019 IEEE-CIS competition dataset; nothing here has been "
     "validated against current fraud patterns.",
-    "Selected and compared on the validation split. The held-out test split is "
-    "unused, so every number in this project is a validation number.",
+    "Selected and compared on the validation split. The held-out test split was "
+    "read once, for B0 and B1-card1 only, under a pre-registered protocol "
+    "(reports/final_test/); every figure in this ledger is a validation figure.",
     "Output scores are not probabilities. Class weighting distorts the scale, "
     "and the measured distortion is under-prediction on the low-score bulk "
     "rather than the inflation the weighting would suggest.",
@@ -67,7 +69,7 @@ UNIVERSAL_LIMITATIONS = [
 
 NOT_SUITABLE_FOR = (
     "Not a deployable fraud model. No production monitoring, no drift handling, "
-    "no calibrated probability output, no evaluation on unseen data. Suitable "
+    "no calibrated probability output, and at most one pre-registered test read. Suitable "
     "only for reproducing and extending this project's measurements."
 )
 

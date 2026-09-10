@@ -1,0 +1,98 @@
+{
+  "report_name": "One-shot final test evaluation",
+  "protocol_version": 1,
+  "protocol_commit": "c9f896ee4c9482725ad581157e7601c39ae83fb5",
+  "outcome": "GAIN_REPLICATES_ON_TEST",
+  "outcome_rule": "Applied to the primary comparison only. If the 95% interval on the test PR-AUC delta lies entirely above zero, the relational gain replicates. If it contains zero, the gain is not confirmed on test and the project's headline is reported as a validation-only finding. If it lies entirely below zero, the gain reverses on test. The outcome is reported whichever way it falls, and its magnitude is not compared to the validation delta as a pass mark: a smaller test delta is expected under validation-guided selection.",
+  "primary_comparison": {
+    "candidate": "b1_card1",
+    "reference": "b0",
+    "metric": "pr_auc",
+    "method": "paired bootstrap over test rows, same indices applied to both models",
+    "n_resamples": 10000,
+    "seed": 42,
+    "interval": "95% percentile",
+    "validation_delta": 0.006304055057609892,
+    "validation_ci_95": [
+      0.002387257418836225,
+      0.010179266133185674
+    ],
+    "observed_delta": 0.004248551573945214,
+    "bootstrap_mean_delta": 0.00425714212999347,
+    "bootstrap_std_delta": 0.0020872283404298206,
+    "ci_lower_95": 0.00020267293173697752,
+    "ci_upper_95": 0.008367122691948548,
+    "excludes_zero": true,
+    "random_seed": 42
+  },
+  "secondary_descriptive_pr_auc_delta_frozen_pair": 0.0037525375043145903,
+  "models": {
+    "b0": {
+      "primary": true,
+      "validation_pr_auc": 0.649193708652322,
+      "test_pr_auc": 0.5597729365299444,
+      "validation_roc_auc": 0.9246941076025785,
+      "test_roc_auc": 0.899558782758703
+    },
+    "b1_card1": {
+      "primary": true,
+      "validation_pr_auc": 0.6554977637099318,
+      "test_pr_auc": 0.5640214881038896,
+      "validation_roc_auc": 0.9280936050493256,
+      "test_roc_auc": 0.8983563410940555
+    },
+    "b0_frozen": {
+      "primary": false,
+      "validation_pr_auc": 0.6491385746479026,
+      "test_pr_auc": 0.5598400653992812,
+      "validation_roc_auc": 0.925020356086887,
+      "test_roc_auc": 0.8997025702771029
+    },
+    "b1_card1_frozen": {
+      "primary": false,
+      "validation_pr_auc": 0.6550391328616743,
+      "test_pr_auc": 0.5635926029035958,
+      "validation_roc_auc": 0.9280732137984835,
+      "test_roc_auc": 0.8981681930719053
+    }
+  },
+  "not_scored": {
+    "g1_card1": "Lost to B0 and B1-card1 on validation with intervals excluding zero; the test partition cannot change that conclusion, so scoring it spends the guarantee for no answer.",
+    "validation panels": "Ablation, fixed-budget, seed-variance, convergence and permuted-null runs are instruments for validation questions, not candidate models."
+  },
+  "validation_reproduction": {
+    "b0": {
+      "rows": 88581,
+      "identical": true
+    },
+    "b1_card1": {
+      "rows": 88581,
+      "identical": true
+    },
+    "b0_frozen": {
+      "rows": 88581,
+      "identical": true
+    },
+    "b1_card1_frozen": {
+      "rows": 88581,
+      "identical": true
+    }
+  },
+  "categorical_mappings_sha256": "d298144085f8d74c7d96ffa25c7694bb158e5ea4fa38d088ac9f28f92a82b98d",
+  "treatment": "A test figure below validation is the expected, correct outcome for a validation-selected model and is reported as the headline number.",
+  "forbidden_afterwards": [
+    "Any change to a model, its features, or its training configuration informed by test results.",
+    "Any decision threshold or operating point tuned on test predictions.",
+    "Any metric added, dropped or re-weighted after the results are seen.",
+    "A second read of the test partition under a revised protocol. Work motivated by these results is a new stage against a newly held-out partition."
+  ],
+  "deviations": [],
+  "inputs_unchanged": true,
+  "test_evaluated": true,
+  "versions": {
+    "lightgbm": "4.7.0",
+    "numpy": "2.5.2",
+    "pandas": "3.0.5"
+  },
+  "generated_at_utc": "2026-09-10T20:49:23.275026+00:00"
+}

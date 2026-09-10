@@ -447,10 +447,10 @@ python -m src.models.calibration_and_operating_points
 # 11. Experiment ledger over every model artifact
 python -m src.models.build_experiment_ledger
 
-# 12. Final test protocol, dry run only: proves every scored model reproduces
-#     its validation predictions exactly, and never opens the test partition.
-#     The one-shot read (--execute) is deliberately not a reproduction step.
-python -m src.models.evaluate_final_test
+# 12. Final test protocol. The one-shot read has been made (Section 17), and the
+#     executor now refuses to run at all, dry run included, because
+#     reports/final_test/ exists. Listed for provenance, not to be rerun:
+# python -m src.models.evaluate_final_test --execute
 
 # 13. Run the gating test suite
 python -m pytest -m "not benchmark" -q
@@ -940,12 +940,66 @@ what makes coverage a property rather than a claim.
 
 Stated on every entry: these are research models trained on a 2019 competition
 dataset, selected on validation, with output scores that are not probabilities.
-**None is a deployable fraud model**, and none has been evaluated on the held-out
-test split.
+**None is a deployable fraud model.** Only B0 and B1-card1 have been scored on the
+held-out test split, once, under the protocol in Section 17; that read wrote its
+own report tree and left every model manifest as it was.
 
 ---
 
-## 17. Known Limitations
+## 17. Final Test Evaluation (`reports/final_test/`)
+
+The test partition — 88,581 rows, the chronologically last 15% — was read
+exactly once, after the protocol in `src/models/final_test_protocol.py` was
+reviewed and committed. Only B0 and B1-card1 were scored: the converged pair
+decides the outcome, and the frozen 6,000-round pair is reported for continuity
+only. G1 lost on validation and was not scored. Before the read was claimed, each
+model re-scored the validation rows through the evaluation path and reproduced
+its persisted predictions bit for bit, so the test figures come from exactly the
+models every validation figure describes. The run recorded no deviations and
+changed none of its inputs.
+
+**The relational gain replicates, narrowly.** The pre-registered comparison is
+B1-card1 minus B0 on PR-AUC, by paired bootstrap with 10,000 resamples:
+
+| | Δ PR-AUC | 95% CI |
+| :--- | ---: | :--- |
+| Validation | $+0.00630$ | $[+0.00239, +0.01018]$ |
+| **Test** | $+0.00425$ | $[+0.00020, +0.00837]$ |
+| Test, frozen pair (descriptive) | $+0.00375$ | — |
+
+The interval excludes zero, so under the fixed rule the outcome is
+`GAIN_REPLICATES_ON_TEST`. Its lower bound clears zero by only $0.0002$, and the
+test delta is about two thirds of the validation one — the shrinkage expected of
+a comparison chosen on validation.
+
+**Every model is markedly worse on test.**
+
+| Model | PR-AUC val | PR-AUC test | Gap | ROC-AUC val | ROC-AUC test | Gap |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| B0 | $0.64919$ | $0.55977$ | $-0.08942$ | $0.92469$ | $0.89956$ | $-0.02514$ |
+| B1-card1 | $0.65550$ | $0.56402$ | $-0.09148$ | $0.92809$ | $0.89836$ | $-0.02974$ |
+| B0, frozen | $0.64914$ | $0.55984$ | $-0.08930$ | $0.92502$ | $0.89970$ | $-0.02532$ |
+| B1-card1, frozen | $0.65504$ | $0.56359$ | $-0.09145$ | $0.92807$ | $0.89817$ | $-0.02991$ |
+
+These are the honest headline numbers. The PR-AUC drop is roughly twenty times
+the relational gain and falls almost equally on every model, converged or
+frozen, relational or not. That is consistent with the test period drifting
+away from the validation period as well as with the optimism of
+validation-guided selection; one read cannot separate the two.
+
+**ROC-AUC does not show the gain on test.** B1-card1's test ROC-AUC is $0.00120$
+below B0's, against $+0.00340$ on validation. No test was registered on ROC-AUC,
+so this is an observation rather than a verdict, and it agrees with Section 14
+that the gain concentrates at the top of the ranking: B1-card1 finds more frauds
+than B0 in the top 1%, 2% and 5% (precision $0.887$ against $0.880$ at 1%), and
+the two are identical in the top 0.5%.
+
+The read is spent. No model, threshold, feature or metric may now change on the
+strength of these results; work they motivate needs a newly held-out partition.
+
+---
+
+## 18. Known Limitations
 
 1. **The cross-fitting control is defective.** Recorded rather than hidden in
    Section 8: the folds were trained from different encoder initialisations, so
@@ -966,14 +1020,15 @@ test split.
 5. **The encoder budget never converged.** The extended-budget control improved
    on the original encoder without plateauing, so the G1 encoder was still
    improving when training stopped.
-6. **The test partition has never been read.** Every number in this document is a
-   validation number.
+6. **The test partition is spent.** It was read once, for B0 and B1-card1, in
+   Section 17. Every other number in this document is a validation number, and
+   no further test read is possible without a newly held-out partition.
 7. **Residual floating-point non-determinism** means metrics may differ in the
    last decimal places across machines.
 
 ---
 
-## 18. Next Phase
+## 19. Next Phase
 
 The measurement-integrity questions are closed. B0, B1-card1 and G1-card1 all
 converge before 15,000 rounds; run-to-run variance is measured and stratified;
@@ -984,13 +1039,15 @@ count summaries contributing additively rather than redundantly.
 
 The B1-card1 result stands as the project's one positive finding: $+0.00630$
 PR-AUC at convergence, attributable to genuine entity history, unexposed to the
-argmax bias, and concentrated near a budget of 400 alerts per day.
+argmax bias, and concentrated near a budget of 400 alerts per day. On the
+held-out test partition it replicates, narrowly: $+0.00425$, 95% CI
+$[+0.00020, +0.00837]$ (Section 17).
 
 Remaining work, in priority order:
 
-1. **One-shot final test protocol.** The localisation has settled, so its stated
-   precondition is met. The test partition is read exactly once, under a
-   protocol written before it is opened.
+1. **A fresh holdout before any further model change.** The test partition is
+   spent, so anything motivated by Section 17 must be judged on data held out
+   from now on, under a protocol written before it is read.
 2. **Revisit the graph-stage recovery target.** With the summaries additive, a
    representation meant to recover the B1-card1 gain has at least two count
    factors to reproduce (`prior_count` and `prior_count_7d`), not one.
@@ -999,7 +1056,7 @@ Considered and declined, with the reasoning kept so either can be reopened:
 
 - **Corrected cross-fitting control.** The confound it removes was measured
   absent (Section 8), so it would spend roughly eight encoder fits confirming a
-  null. The defect itself stays recorded in Section 17.
+  null. The defect itself stays recorded in Section 18.
 - **Combined multi-relation variant over `card1` and `card1_card2`.** The two
   overlap by construction ($98.42\%$ against $100\%$ coverage) and are not
   distinguishable on the paired bootstrap, so the expected effect sits below the
