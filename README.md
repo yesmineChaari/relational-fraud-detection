@@ -313,6 +313,44 @@ synthetic-fixture tests that carry the suite run regardless.
 
 ## 7. Execution & Reproduction Guide
 
+### Obtaining the Raw Data
+
+The raw inputs are not in this repository. They are roughly 1.3 GB, and they are
+distributed by Kaggle under the **IEEE-CIS Fraud Detection** competition rules,
+which govern access and redistribution — so `data/raw/` is gitignored and this
+project redistributes none of it. Download it yourself from the
+[competition data page](https://www.kaggle.com/competitions/ieee-fraud-detection/data)
+after accepting those rules.
+
+Two files are required, and both go in `data/raw/`:
+
+| File | Data rows | SHA-256 | Role |
+| :--- | ---: | :--- | :--- |
+| `train_transaction.csv` | 590,540 | `3a5c83ab…83d642` | Transactions and the `isFraud` label. Every split here is carved from it. |
+| `train_identity.csv` | 144,233 | `b63c725d…03c37c` | Device and identity attributes, left-joined where present. |
+
+**Three files in the download are deliberately unused**, and the distinction is
+worth stating because getting it wrong is costly. `test_transaction.csv`,
+`test_identity.csv` and `sample_submission.csv` are the *competition's*
+unlabelled holdout — they carry no `isFraud` column at all. They are not this
+project's test partition, which is carved from the labelled training file by the
+temporal split in Section 3.
+
+Verify before running anything:
+
+```bash
+python -m src.data.verify_raw_inputs
+```
+
+It checks presence, row counts and checksums, and names exactly what is missing
+or mismatched rather than failing later inside a parser. Full digests are
+recorded in `src/data/verify_raw_inputs.py`. Pass `--skip-checksums` for a fast
+presence-and-length check on a 1.3 GB input.
+
+A checksum mismatch does not necessarily mean the data is wrong, but it does mean
+the committed reports cannot be expected to reproduce byte for byte — which is
+worth knowing before hours of training rather than after.
+
 ### Environment Setup
 ```bash
 python -m venv .venv
@@ -322,6 +360,9 @@ pip install -r requirements.txt
 
 ### Reproduce Feature Generation & Training
 ```bash
+# 0. Verify the raw inputs are present, complete and the expected files
+python -m src.data.verify_raw_inputs
+
 # 1. Train-only relation screening (Stage A; no validation is read)
 python -m src.features.screen_relations
 
