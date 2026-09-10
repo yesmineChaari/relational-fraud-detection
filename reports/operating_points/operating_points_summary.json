@@ -1,0 +1,96 @@
+{
+  "report_name": "Calibration and alert-budget operating points",
+  "question": "How badly does class weighting distort the score scale, how much of that is correctable, and where in the ranking does the relational gain actually sit?",
+  "protocol": "frozen artifacts; no retraining, analysis reads persisted predictions only",
+  "validation_span_days": 31.410150462962964,
+  "validation_rows": 88581,
+  "transactions_per_day": 2820.139308293018,
+  "scale_pos_weight_applied": 27.434310083918007,
+  "calibration_headline": {
+    "worst_calibrated_variant": "B1-card1",
+    "measured_direction": "Scores understate the base rate on average (mean score below prevalence for every variant), the opposite of what upweighting positives 27x would suggest. The reliability curve locates it: the low-score bin holds 96% of rows and under-predicts roughly fivefold, dominating the mean.",
+    "mean_score_over_prevalence_range": [
+      0.6271932840157952,
+      0.6693083805672811
+    ],
+    "expected_calibration_error_range": [
+      0.013538121199733907,
+      0.01391374723163049
+    ]
+  },
+  "recalibration_is_optimistic": "Isotonic and Platt calibrators are fit on the validation rows and scored on those same rows. The calibrator has seen every point it is evaluated on, so these figures are an upper bound on correctable distortion, not an estimate of deployed calibration. Isotonic reaching an expected calibration error of exactly zero is the proof that this caveat is doing real work rather than being boilerplate: a step function fit on its own evaluation rows can always drive in-sample calibration error to zero, and that number says nothing whatsoever about a held-out row. Platt, being a two-parameter sigmoid, cannot fit the shape and makes the Brier score worse than the raw scores. Neither is a deployment recommendation; a calibrator intended for use must be fit on data disjoint from the rows it is judged on.",
+  "cost_assumptions": "Costs are per incident, not amount-weighted: the persisted predictions carry no transaction amount, so a missed 10-dollar fraud and a missed 10,000-dollar fraud count the same here. One missed fraud costs `cost_ratio` times one false alert; the cost of a correctly ignored legitimate transaction and of a correctly caught fraud are both zero. Every ratio is illustrative and swept, never asserted as this problem's true economics.",
+  "cost_ratios_swept": [
+    5,
+    10,
+    25,
+    50,
+    100,
+    250
+  ],
+  "alerts_per_day_swept": [
+    10,
+    25,
+    50,
+    100,
+    200,
+    400,
+    800,
+    1600
+  ],
+  "where_the_b1_gain_concentrates": {
+    "10": {
+      "b1_card1_recall_delta_vs_b0": 0.0003287310979618596,
+      "b1_card1_precision_delta_vs_b0": 0.0031847133757961776,
+      "additional_frauds_caught_vs_b0": 1
+    },
+    "25": {
+      "b1_card1_recall_delta_vs_b0": -0.0003287310979618596,
+      "b1_card1_precision_delta_vs_b0": -0.001273885350318471,
+      "additional_frauds_caught_vs_b0": -1
+    },
+    "50": {
+      "b1_card1_recall_delta_vs_b0": 0.0019723865877712132,
+      "b1_card1_precision_delta_vs_b0": 0.003819223424570417,
+      "additional_frauds_caught_vs_b0": 6
+    },
+    "100": {
+      "b1_card1_recall_delta_vs_b0": 0.002301117685733045,
+      "b1_card1_precision_delta_vs_b0": 0.0022285896211398093,
+      "additional_frauds_caught_vs_b0": 7
+    },
+    "200": {
+      "b1_card1_recall_delta_vs_b0": 0.006574621959237303,
+      "b1_card1_precision_delta_vs_b0": 0.003183699458771061,
+      "additional_frauds_caught_vs_b0": 20
+    },
+    "400": {
+      "b1_card1_recall_delta_vs_b0": 0.015121630506245931,
+      "b1_card1_precision_delta_vs_b0": 0.00366125437758677,
+      "additional_frauds_caught_vs_b0": 46
+    },
+    "800": {
+      "b1_card1_recall_delta_vs_b0": 0.00460223537146609,
+      "b1_card1_precision_delta_vs_b0": 0.0005571474052849384,
+      "additional_frauds_caught_vs_b0": 14
+    },
+    "1600": {
+      "b1_card1_recall_delta_vs_b0": 0.0016436554898093814,
+      "b1_card1_precision_delta_vs_b0": 9.949060808659566e-05,
+      "additional_frauds_caught_vs_b0": 5
+    }
+  },
+  "budget_with_largest_b1_recall_gain": 400,
+  "outputs": {
+    "calibration": "reports/operating_points/calibration.csv",
+    "reliability_curves": "reports/operating_points/reliability_curves.csv",
+    "alert_budget_sweep": "reports/operating_points/alert_budget_sweep.csv",
+    "cost_sweep": "reports/operating_points/cost_sweep.csv"
+  },
+  "test_evaluated": false,
+  "versions": {
+    "numpy": "2.5.2",
+    "pandas": "3.0.5"
+  },
+  "generated_at_utc": "2026-09-10T08:37:32.341737+00:00"
+}
