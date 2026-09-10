@@ -1,0 +1,52 @@
+{
+  "report_name": "Paired-bootstrap intervals at the converged protocol",
+  "protocol": "converged (cap 15,000, average_precision patience, seed 42)",
+  "method": "Identical estimator, resample count and seed to every other significance artifact in this project, so a converged interval and a frozen one mean the same thing.",
+  "n_resamples": 10000,
+  "comparisons": {
+    "b1_card1_vs_b0": {
+      "metric": "pr_auc",
+      "n_resamples": 10000,
+      "observed_delta": 0.006304055057609892,
+      "bootstrap_mean_delta": 0.006293023642916897,
+      "bootstrap_std_delta": 0.0019897193086562824,
+      "ci_lower_95": 0.002387257418836225,
+      "ci_upper_95": 0.010179266133185674,
+      "excludes_zero": true,
+      "random_seed": 42,
+      "candidate": "b1_card1",
+      "reference": "b0",
+      "validation_row_count": 88581
+    },
+    "g1_card1_vs_b0": {
+      "metric": "pr_auc",
+      "n_resamples": 10000,
+      "observed_delta": -0.020925473252758398,
+      "bootstrap_mean_delta": -0.02094286171098562,
+      "bootstrap_std_delta": 0.0027790232430809567,
+      "ci_lower_95": -0.026315559252907104,
+      "ci_upper_95": -0.015394685186452753,
+      "excludes_zero": true,
+      "random_seed": 42,
+      "candidate": "g1_card1",
+      "reference": "b0",
+      "validation_row_count": 88581
+    },
+    "g1_card1_vs_b1_card1": {
+      "metric": "pr_auc",
+      "n_resamples": 10000,
+      "observed_delta": -0.02722952831036829,
+      "bootstrap_mean_delta": -0.027235885353902516,
+      "bootstrap_std_delta": 0.002846456034035041,
+      "ci_lower_95": -0.032748285902899354,
+      "ci_upper_95": -0.02165777923948539,
+      "excludes_zero": true,
+      "random_seed": 42,
+      "candidate": "g1_card1",
+      "reference": "b1_card1",
+      "validation_row_count": 88581
+    }
+  },
+  "test_evaluated": false,
+  "generated_at_utc": "2026-09-10T08:31:13.457016+00:00"
+}

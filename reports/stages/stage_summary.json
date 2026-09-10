@@ -1,0 +1,43 @@
+{
+  "report_name": "Cross-stage comparison: B0, B1 relational variants and G1",
+  "question": "Does each successive stage improve on the best stage before it, and does the newest stage beat the tabular baseline at all?",
+  "classification_rule": "Read from stage order, never from stage names, so registering a future stage needs no change here. The newest stage is compared against the baseline and against the best-performing earlier stage, both by the paired-bootstrap interval on the paired delta. Failing to beat the baseline takes precedence over any comparison with the incumbent, since a stage that loses to using no relational information at all is not meaningfully ranked against one that does. Where an interval is missing the outcome is undecided rather than inferred from the point estimate.",
+  "protocols": {
+    "frozen_cap6000": "6,000-estimator cap. The convergence check found this cap binding: frozen G1 never triggered early stopping and stopped at the cap, so its figure understates the model.",
+    "converged_cap15000": "15,000-estimator cap, average_precision patience, seed 42. No run reaches the cap and every one triggers early stopping."
+  },
+  "protocols_are_not_comparable_across": "Rows are compared only within a protocol. A converged model scored against a cap-truncated one would reintroduce the confound the convergence work removed.",
+  "frozen_outcome": {
+    "baseline_variant": "B0",
+    "latest_stage": "G1",
+    "latest_variant": "G1-card1",
+    "incumbent_variant": "B1-card1",
+    "latest_delta_vs_baseline": -0.022718278028054373,
+    "latest_delta_vs_baseline_excludes_zero": true,
+    "latest_delta_vs_incumbent": -0.02861883624182604,
+    "latest_delta_vs_incumbent_excludes_zero": true,
+    "outcome_code": "LATEST_STAGE_FAILS_TO_BEAT_BASELINE",
+    "conclusion": "The newest stage does not beat the tabular baseline at all. The representation is not merely weaker than the incumbent; it costs accuracy against using no relational information whatsoever."
+  },
+  "converged_outcome": {
+    "baseline_variant": "B0",
+    "latest_stage": "G1",
+    "latest_variant": "G1-card1",
+    "incumbent_variant": "B1-card1",
+    "latest_delta_vs_baseline": -0.020925473252758398,
+    "latest_delta_vs_baseline_excludes_zero": true,
+    "latest_delta_vs_incumbent": -0.02722952831036829,
+    "latest_delta_vs_incumbent_excludes_zero": true,
+    "outcome_code": "LATEST_STAGE_FAILS_TO_BEAT_BASELINE",
+    "conclusion": "The newest stage does not beat the tabular baseline at all. The representation is not merely weaker than the incumbent; it costs accuracy against using no relational information whatsoever."
+  },
+  "quote_the_converged_g1_deficit": true,
+  "n_rows": 8,
+  "comparison_table_path": "reports/stages/stage_comparison.csv",
+  "final_test_evaluated": false,
+  "candidate_selection_used_validation": true,
+  "versions": {
+    "pandas": "3.0.5"
+  },
+  "generated_at_utc": "2026-09-10T08:31:28.797390+00:00"
+}
