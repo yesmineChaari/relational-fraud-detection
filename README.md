@@ -279,6 +279,8 @@ fraud-relational-ml/
 │       ├── rederive_ablation_at_equal_budget.py       # Equal-budget re-derivation with intervals
 │       ├── train_ablation_fixed_budget.py             # Ablation refits at a budget fixed in advance
 │       ├── compare_fixed_budget_ablation.py           # Fixed-budget verdict beside both earlier protocols
+│       ├── final_test_protocol.py                     # One-shot test protocol, committed before the read
+│       ├── evaluate_final_test.py                     # Enforces that protocol; a dry run by default
 │       ├── compare_converged_significance.py          # Paired-bootstrap CIs at the converged protocol
 │       ├── compare_stages.py                          # Cross-stage table spanning B0, B1 and G1
 │       ├── calibration_and_operating_points.py        # Reliability, alert budgets, cost sweep
@@ -306,6 +308,7 @@ fraud-relational-ml/
     ├── test_rederive_ablation_at_equal_budget.py      # Equal-budget panel classification suite
     ├── test_fixed_budget_ablation.py                  # Pre-registered budget, run plan & resume suite
     ├── test_compare_fixed_budget_ablation.py          # Fixed-budget verdict & bracket suite
+    ├── test_final_test_executor.py                    # One-shot guards & scoring, synthetic data only
     ├── test_compare_stages.py                         # Cross-stage registry & classifier suite
     ├── test_calibration_and_operating_points.py       # Calibration, budget & cost-sweep suite
     └── test_experiment_ledger.py                      # Ledger completeness & disclosure suite
@@ -444,11 +447,16 @@ python -m src.models.calibration_and_operating_points
 # 11. Experiment ledger over every model artifact
 python -m src.models.build_experiment_ledger
 
-# 12. Run the gating test suite
+# 12. Final test protocol, dry run only: proves every scored model reproduces
+#     its validation predictions exactly, and never opens the test partition.
+#     The one-shot read (--execute) is deliberately not a reproduction step.
+python -m src.models.evaluate_final_test
+
+# 13. Run the gating test suite
 python -m pytest -m "not benchmark" -q
 ```
 
-Step 12 excludes benchmarks deliberately. The suite contains one throughput
+Step 13 excludes benchmarks deliberately. The suite contains one throughput
 measurement that asserts on wall-clock time; it is real information but it fails
 under machine load, so it is marked `benchmark` and kept out of the gating run.
 `python -m pytest -m benchmark` runs it on its own.
