@@ -314,9 +314,9 @@ fraud-relational-ml/
     └── test_experiment_ledger.py                      # Ledger completeness & disclosure suite
 ```
 
-The suite is **792 tests**: 791 in the gating run plus one throughput benchmark
+The suite is **815 tests**: 814 in the gating run plus one throughput benchmark
 that is marked and deselected. Continuous integration runs the gating set on
-every push and pull request. On a clean checkout 51 of them skip, because the
+every push and pull request. On a clean checkout 52 of them skip, because the
 raw dataset is gitignored and the tests that need it guard on its presence; the
 synthetic-fixture tests that carry the suite run regardless.
 
