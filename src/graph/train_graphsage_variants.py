@@ -77,6 +77,7 @@ import torch
 import torch.nn as nn
 from sklearn.metrics import average_precision_score
 
+from src.config.paths import ROOT_DIR
 from src.graph.build_transaction_graph import (
     ENTITY_EDGES_PATH,
     NODES_PATH,
@@ -114,8 +115,6 @@ from src.models.train_lightgbm_baseline import (
     repository_relative,
     write_json,
 )
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
 CONTROL_REPORT_ROOT = ROOT_DIR / "reports" / "g1_controls"
 PROCESSED_DIR = ROOT_DIR / "data" / "processed"

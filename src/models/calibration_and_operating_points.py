@@ -61,7 +61,8 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import brier_score_loss
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+from src.config.paths import ROOT_DIR
+
 REPORTS_DIR = ROOT_DIR / "reports"
 OUTPUT_DIR = REPORTS_DIR / "operating_points"
 

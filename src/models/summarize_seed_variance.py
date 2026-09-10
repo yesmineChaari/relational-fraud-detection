@@ -28,16 +28,14 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from src.config.paths import ROOT_DIR
 from src.models.train_lightgbm_g1 import paired_bootstrap_pr_auc_delta
 from src.models.train_seed_variants import CONFIGURATIONS, REPORT_DIR
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
 RUNS_CSV = REPORT_DIR / "seed_variance_runs.csv"
 SUMMARY_JSON = REPORT_DIR / "seed_variance_summary.json"

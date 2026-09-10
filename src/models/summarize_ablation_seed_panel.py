@@ -79,8 +79,6 @@ from src.models.train_lightgbm_convergence_check import (
     resolve_run_paths as resolve_convergence_run_paths,
 )
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
-
 RUNS_CSV = REPORT_DIR.parent / "ablation_seed_panel_runs.csv"
 SUMMARY_JSON = REPORT_DIR.parent / "ablation_seed_panel_summary.json"
 

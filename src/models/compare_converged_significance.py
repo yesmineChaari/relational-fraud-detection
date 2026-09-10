@@ -25,9 +25,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.config.paths import ROOT_DIR
 from src.models.significance import DEFAULT_N_RESAMPLES, compare_variants
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
 CONVERGED_DIR = ROOT_DIR / "reports" / "convergence_check"
 CONVERGED_RUN = "cap15000_seed42"
 STOP_METRIC_DIR = "stop_average_precision"

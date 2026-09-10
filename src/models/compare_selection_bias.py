@@ -51,13 +51,13 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from src.config.paths import ROOT_DIR
 from src.models.selection_bias import (
     AVERAGE_PRECISION_COLUMN,
     DEFAULT_PLATEAU_WINDOW,
     compare_estimators,
 )
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
 REPORTS_DIR = ROOT_DIR / "reports"
 OUTPUT_DIR = REPORTS_DIR / "selection_bias"
 COMPARISON_CSV = OUTPUT_DIR / "selection_bias_comparison.csv"

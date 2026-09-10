@@ -10,7 +10,8 @@ import numpy as np
 import pandas as pd
 import torch
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+from src.config.paths import ROOT_DIR
+
 REPORT_PATH = ROOT_DIR / "reports" / "environment" / "g1_dependency_stack.json"
 
 FRAMEWORK_DECISION = "hand_rolled_pytorch"

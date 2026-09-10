@@ -35,6 +35,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from src.config.paths import ROOT_DIR
 from src.models.train_lightgbm_baseline import RANDOM_SEED, repository_relative, write_json
 from src.models.train_lightgbm_convergence_check import (
     CONFIGURATIONS,
@@ -46,8 +47,6 @@ from src.models.train_lightgbm_convergence_check import (
 )
 from src.models.train_lightgbm_g1 import build_comparison_table
 from src.models.train_lightgbm_relational import read_json
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
 COMPARISON_PATH = REPORT_DIR / "convergence_comparison.csv"
 SUMMARY_PATH = REPORT_DIR / "convergence_summary.json"

@@ -39,6 +39,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from src.config.paths import ROOT_DIR
 from src.models.train_lightgbm_baseline import repository_relative, write_json
 from src.models.train_lightgbm_g1 import (
     B1_CARD1_METRICS_PATH,
@@ -53,8 +54,6 @@ from src.models.train_lightgbm_g1_controls import (
     SHUFFLED_VARIANT_NAME,
 )
 from src.models.train_lightgbm_relational import read_json
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
 CONTROL_REPORT_ROOT = ROOT_DIR / "reports" / "g1_controls"
 COMPARISON_PATH = CONTROL_REPORT_ROOT / "g1_control_comparison.csv"

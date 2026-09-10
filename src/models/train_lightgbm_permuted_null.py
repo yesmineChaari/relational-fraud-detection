@@ -75,6 +75,7 @@ import pandas as pd
 import sklearn
 from lightgbm import LGBMClassifier
 
+from src.config.paths import ROOT_DIR
 from src.features.build_relational_features import (
     EXPECTED_ROWS as RELATIONAL_EXPECTED_ROWS,
 )
@@ -132,8 +133,6 @@ from src.models.train_lightgbm_relational import (
     validate_model_columns_against_frozen_b0,
     validate_relational_merge,
 )
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
 RELATION = "card1"
 STOP_METRIC = "average_precision"

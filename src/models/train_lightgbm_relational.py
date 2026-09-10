@@ -15,6 +15,7 @@ import sklearn
 from lightgbm import LGBMClassifier
 from pandas.api.types import is_float_dtype, is_integer_dtype, is_numeric_dtype
 
+from src.config.paths import ROOT_DIR
 from src.features.build_relational_features import (
     RELATION_REGISTRY,
     _feature_names,
@@ -55,8 +56,6 @@ from src.models.train_lightgbm_baseline import (
 from src.models.train_lightgbm_baseline import (
     MODEL_PATH as B0_MODEL_PATH,
 )
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
 EXPECTED_B0_FEATURE_COUNT = 435
 EXPECTED_B1_FEATURE_COUNT = 439

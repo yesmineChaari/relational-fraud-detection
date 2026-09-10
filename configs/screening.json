@@ -1,0 +1,50 @@
+{
+  "_comment": [
+    "Stage A/B relation screening thresholds. These encode a policy rather than",
+    "an invariant, which is why they live here and not in the code: a reader may",
+    "reasonably want to inspect them or vary them without editing screening",
+    "logic. The effective values are written into",
+    "reports/relational_screening/candidate_selection.json on every run, so a",
+    "past run's thresholds stay recoverable from its own output.",
+    "",
+    "Frozen hyperparameters, expected row counts and the forbidden column set are",
+    "deliberately NOT here. Those are invariants the code asserts against, and",
+    "the friction of changing them is the point.",
+    "",
+    "Every key below is required. A missing or unknown key is rejected rather",
+    "than defaulted, so a typo cannot silently loosen a threshold."
+  ],
+
+  "structural": {
+    "_comment": "A relation failing any of these is structurally rejected.",
+    "coverage_min_pct": 50.0,
+    "largest_entity_share_reject_pct": 10.0,
+    "largest_component_reject_pct": 10.0,
+    "recurring_entity_min_pct": 50.0,
+    "group_size_median_min": 2.0,
+    "median_repeat_gap_must_be_finite": true
+  },
+
+  "promotion": {
+    "_comment": [
+      "Stricter than the structural gates, for the `preferred` decision. The",
+      "cap on preferred relations bounds how many variants the next stage trains."
+    ],
+    "preferred_coverage_min_pct": 80.0,
+    "preferred_largest_entity_max_pct": 5.0,
+    "max_preferred_relations": 2
+  },
+
+  "signal": {
+    "_comment": [
+      "Expressed as PR-AUC lift over the base rate, so they do not depend on the",
+      "fraud prevalence of the partition being screened.",
+      "require_signal_above_missingness is the gate that caught card_core_addr1:",
+      "a relation's history summaries must beat its own key-missingness",
+      "indicator, or the apparent signal is the missingness sentinel."
+    ],
+    "signal_strong_pr_auc_lift": 2.0,
+    "signal_moderate_pr_auc_lift": 1.25,
+    "require_signal_above_missingness": true
+  }
+}

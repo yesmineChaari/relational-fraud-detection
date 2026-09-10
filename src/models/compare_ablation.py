@@ -48,6 +48,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from src.config.paths import ROOT_DIR
 from src.models.significance import compare_variants
 from src.models.train_lightgbm_ablation import (
     ABLATION_FEATURES,
@@ -61,8 +62,6 @@ from src.models.train_lightgbm_ablation import (
     SINGLETON,
     resolve_run_paths,
 )
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
 COMPARISON_CSV = REPORT_DIR.parent / "ablation_comparison.csv"
 SUMMARY_JSON = REPORT_DIR.parent / "ablation_summary.json"

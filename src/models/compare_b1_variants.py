@@ -30,9 +30,8 @@ from typing import Any
 
 import pandas as pd
 
+from src.config.paths import ROOT_DIR
 from src.models.train_lightgbm_baseline import repository_relative
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
 # role:
 #   "baseline" -> the frozen B0 reference every delta is measured against

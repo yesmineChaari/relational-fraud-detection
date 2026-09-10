@@ -84,7 +84,6 @@ import copy
 import json
 import platform
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -95,6 +94,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import average_precision_score
 
+from src.config.paths import ROOT_DIR
 from src.graph.build_transaction_graph import (
     ENTITY_EDGES_PATH,
     NODES_PATH,
@@ -118,8 +118,6 @@ from src.models.train_lightgbm_baseline import (
     repository_relative,
     write_json,
 )
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
 FEATURE_CACHE_PATH = ROOT_DIR / "data" / "processed" / "graphsage_card1_node_features.npy"
 FEATURE_SCALER_PATH = ROOT_DIR / "data" / "processed" / "graphsage_card1_feature_scaler.json"

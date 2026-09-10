@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+from src.config.paths import ROOT_DIR
 
 INPUT_PATH = ROOT_DIR / "data" / "raw" / "train_transaction.csv"
 OUTPUT_DIR = ROOT_DIR / "data" / "processed"

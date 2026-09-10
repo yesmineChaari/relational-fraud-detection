@@ -54,6 +54,7 @@ import pandas as pd
 import sklearn
 from pandas.api.types import is_numeric_dtype
 
+from src.config.paths import ROOT_DIR
 from src.graph.train_graphsage_encoder import (
     EMBEDDING_DIM,
 )
@@ -122,8 +123,6 @@ from src.models.train_lightgbm_relational import (
     validate_frozen_lightgbm_configuration,
     validate_model_columns_against_frozen_b0,
 )
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
 B0_METRICS_PATH = ROOT_DIR / "reports" / "baseline" / "lightgbm_metrics.json"
 B0_VALIDATION_PREDICTIONS_PATH = (

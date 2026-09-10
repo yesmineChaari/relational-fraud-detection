@@ -42,7 +42,8 @@ from typing import Any, Callable
 
 import pandas as pd
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+from src.config.paths import ROOT_DIR
+
 MODELS_DIR = ROOT_DIR / "models"
 REPORTS_DIR = ROOT_DIR / "reports"
 OUTPUT_DIR = REPORTS_DIR / "ledger"

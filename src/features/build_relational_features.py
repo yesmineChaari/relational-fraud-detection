@@ -10,7 +10,8 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_float_dtype, is_integer_dtype, is_numeric_dtype
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+from src.config.paths import ROOT_DIR
+
 INPUT_PATH = ROOT_DIR / "data" / "processed" / "model_dataset.parquet"
 
 # ---------------------------------------------------------------------------

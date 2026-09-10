@@ -43,7 +43,8 @@ from typing import Any
 
 import pandas as pd
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+from src.config.paths import ROOT_DIR
+
 REPORTS_DIR = ROOT_DIR / "reports"
 OUTPUT_DIR = REPORTS_DIR / "stages"
 COMPARISON_CSV = OUTPUT_DIR / "stage_comparison.csv"

@@ -41,6 +41,7 @@ import numpy as np
 import pandas as pd
 import pyarrow
 
+from src.config.paths import ROOT_DIR
 from src.graph.temporal_contract import (
     EDGE_STRUCTURAL_STORAGE,
     EDGE_TEMPORAL_ADMISSIBILITY,
@@ -63,7 +64,6 @@ from src.models.train_lightgbm_baseline import (
     METADATA_PATH as B0_METADATA_PATH,
 )
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
 NODES_PATH = ROOT_DIR / "data" / "processed" / "graph_card1_nodes.parquet"
 ENTITY_EDGES_PATH = ROOT_DIR / "data" / "processed" / "graph_card1_entity_edges.parquet"
 REPORT_DIR = ROOT_DIR / "reports" / "graph"

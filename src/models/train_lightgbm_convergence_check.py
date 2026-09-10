@@ -51,6 +51,7 @@ import pandas as pd
 import sklearn
 from lightgbm import LGBMClassifier
 
+from src.config.paths import ROOT_DIR
 from src.features.build_relational_features import _feature_names
 from src.models.train_lightgbm_baseline import (
     EXPECTED_SPLIT_COUNTS,
@@ -97,8 +98,6 @@ from src.models.train_lightgbm_relational import (
     snapshot_protected_artifacts,
     validate_model_columns_against_frozen_b0,
 )
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
 REPORT_DIR = ROOT_DIR / "reports" / "convergence_check"
 MODEL_DIR = ROOT_DIR / "models" / "convergence_check"

@@ -215,6 +215,8 @@ fraud-relational-ml/
 │   ├── convergence_check/                             # Extended-cap and alternative-stopping runs
 │   ├── seed_variance/                                 # Five-seed B0 and B1-card1 panels
 │   └── permuted_null/                                 # Permuted-entity null control runs
+├── configs/
+│   └── screening.json                                 # Stage A/B screening thresholds (policy, not invariants)
 ├── reports/
 │   ├── baseline/                                      # B0 metrics, metadata, importance
 │   ├── data_profile/                                  # Column-level profile of all 435 raw predictors

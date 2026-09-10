@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 from pandas.api.types import is_numeric_dtype, is_object_dtype, is_string_dtype
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+from src.config.paths import ROOT_DIR
 
 TRANSACTION_PATH = ROOT_DIR / "data" / "raw" / "train_transaction.csv"
 IDENTITY_PATH = ROOT_DIR / "data" / "raw" / "train_identity.csv"

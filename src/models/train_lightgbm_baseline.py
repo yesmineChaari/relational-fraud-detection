@@ -22,7 +22,7 @@ from pandas.api.types import (
 )
 from sklearn.metrics import average_precision_score, roc_auc_score
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+from src.config.paths import ROOT_DIR
 
 MODEL_DATASET_PATH = ROOT_DIR / "data" / "processed" / "model_dataset.parquet"
 SPLIT_MANIFEST_PATH = ROOT_DIR / "data" / "processed" / "split_assignment.parquet"

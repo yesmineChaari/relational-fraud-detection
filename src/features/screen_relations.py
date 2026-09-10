@@ -39,6 +39,7 @@ import pyarrow.parquet as pq
 from scipy.stats import spearmanr
 from sklearn.metrics import average_precision_score, roc_auc_score
 
+from src.config.paths import ROOT_DIR, SCREENING_CONFIG_PATH
 from src.features.build_relational_features import (
     _feature_names,
     compute_relational_features,
@@ -49,7 +50,6 @@ from src.graph.analyze_relations import CANDIDATES
 # Paths
 # ---------------------------------------------------------------------------
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
 ENTITY_DIAG_PATH = ROOT_DIR / "reports" / "relational_audit" / "entity_diagnostics.csv"
 GRAPH_DIAG_PATH = ROOT_DIR / "reports" / "relational_audit" / "graph_diagnostics.csv"
@@ -73,6 +73,69 @@ REPORT_DIR = ROOT_DIR / "reports" / "relational_screening"
 ALL_CANDIDATE_NAMES = list(CANDIDATES.keys())
 
 # ---------------------------------------------------------------------------
+SCREENING_CONFIG_SCHEMA: dict[str, tuple[str, ...]] = {
+    "structural": (
+        "coverage_min_pct",
+        "largest_entity_share_reject_pct",
+        "largest_component_reject_pct",
+        "recurring_entity_min_pct",
+        "group_size_median_min",
+        "median_repeat_gap_must_be_finite",
+    ),
+    "promotion": (
+        "preferred_coverage_min_pct",
+        "preferred_largest_entity_max_pct",
+        "max_preferred_relations",
+    ),
+    "signal": (
+        "signal_strong_pr_auc_lift",
+        "signal_moderate_pr_auc_lift",
+        "require_signal_above_missingness",
+    ),
+}
+
+
+def load_screening_config(path: Path = SCREENING_CONFIG_PATH) -> dict[str, dict[str, Any]]:
+    """Screening thresholds, validated against a fixed schema.
+
+    Every key is required and unknown keys are rejected, so a typo cannot
+    silently loosen a gate -- a misspelled threshold falling back to a default
+    would be a screening policy nobody chose. Keys beginning with an underscore
+    are commentary and are ignored.
+    """
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Screening thresholds not found at {path}. This file holds the "
+            f"screening policy and is required; it is not optional configuration."
+        )
+    with path.open(encoding="utf-8") as handle:
+        payload = json.load(handle)
+
+    resolved: dict[str, dict[str, Any]] = {}
+    for section, required_keys in SCREENING_CONFIG_SCHEMA.items():
+        if section not in payload:
+            raise KeyError(f"{path}: missing required section {section!r}.")
+        values = {k: v for k, v in payload[section].items() if not k.startswith("_")}
+        missing = sorted(set(required_keys) - set(values))
+        unknown = sorted(set(values) - set(required_keys))
+        if missing:
+            raise KeyError(f"{path}: section {section!r} is missing {missing}.")
+        if unknown:
+            raise KeyError(
+                f"{path}: section {section!r} has unknown keys {unknown}. Unknown "
+                f"keys are rejected rather than ignored, so a typo cannot silently "
+                f"leave a threshold at its old value."
+            )
+        resolved[section] = values
+    return resolved
+
+
+_SCREENING_CONFIG = load_screening_config()
+_STRUCTURAL = _SCREENING_CONFIG["structural"]
+_PROMOTION = _SCREENING_CONFIG["promotion"]
+_SIGNAL = _SCREENING_CONFIG["signal"]
+
+
 # Structural screening thresholds -- documented with rationale.
 #
 # COVERAGE_MIN_PCT (50%):
@@ -100,12 +163,12 @@ ALL_CANDIDATE_NAMES = list(CANDIDATES.keys())
 #   Recurring entities must have a finite median repeat gap.
 # ---------------------------------------------------------------------------
 
-COVERAGE_MIN_PCT: float = 50.0
-LARGEST_ENTITY_SHARE_REJECT_PCT: float = 10.0
-LARGEST_COMPONENT_REJECT_PCT: float = 10.0
-RECURRING_ENTITY_MIN_PCT: float = 50.0
-GROUP_SIZE_MEDIAN_MIN: float = 2.0
-MEDIAN_REPEAT_GAP_MUST_BE_FINITE: bool = True
+COVERAGE_MIN_PCT: float = _STRUCTURAL["coverage_min_pct"]
+LARGEST_ENTITY_SHARE_REJECT_PCT: float = _STRUCTURAL["largest_entity_share_reject_pct"]
+LARGEST_COMPONENT_REJECT_PCT: float = _STRUCTURAL["largest_component_reject_pct"]
+RECURRING_ENTITY_MIN_PCT: float = _STRUCTURAL["recurring_entity_min_pct"]
+GROUP_SIZE_MEDIAN_MIN: float = _STRUCTURAL["group_size_median_min"]
+MEDIAN_REPEAT_GAP_MUST_BE_FINITE: bool = _STRUCTURAL["median_repeat_gap_must_be_finite"]
 
 # ---------------------------------------------------------------------------
 # Promotion thresholds for the `preferred` decision -- documented with rationale.
@@ -126,9 +189,9 @@ MEDIAN_REPEAT_GAP_MUST_BE_FINITE: bool = True
 #   small is what stops validation becoming a selection loop.
 # ---------------------------------------------------------------------------
 
-PREFERRED_COVERAGE_MIN_PCT: float = 80.0
-PREFERRED_LARGEST_ENTITY_MAX_PCT: float = 5.0
-MAX_PREFERRED_RELATIONS: int = 2
+PREFERRED_COVERAGE_MIN_PCT: float = _PROMOTION["preferred_coverage_min_pct"]
+PREFERRED_LARGEST_ENTITY_MAX_PCT: float = _PROMOTION["preferred_largest_entity_max_pct"]
+MAX_PREFERRED_RELATIONS: int = _PROMOTION["max_preferred_relations"]
 
 # ---------------------------------------------------------------------------
 # Feature-signal thresholds -- expressed as PR-AUC lift over the base rate.
@@ -143,8 +206,8 @@ MAX_PREFERRED_RELATIONS: int = 2
 # Anything below 1.25x is reported as weak.
 # ---------------------------------------------------------------------------
 
-SIGNAL_STRONG_PR_AUC_LIFT: float = 2.0
-SIGNAL_MODERATE_PR_AUC_LIFT: float = 1.25
+SIGNAL_STRONG_PR_AUC_LIFT: float = _SIGNAL["signal_strong_pr_auc_lift"]
+SIGNAL_MODERATE_PR_AUC_LIFT: float = _SIGNAL["signal_moderate_pr_auc_lift"]
 
 # ---------------------------------------------------------------------------
 # Missingness-dominance rule.
@@ -162,7 +225,7 @@ SIGNAL_MODERATE_PR_AUC_LIFT: float = 1.25
 # from the raw columns. This is a measured comparison, not a fixed threshold.
 # ---------------------------------------------------------------------------
 
-REQUIRE_SIGNAL_ABOVE_MISSINGNESS: bool = True
+REQUIRE_SIGNAL_ABOVE_MISSINGNESS: bool = _SIGNAL["require_signal_above_missingness"]
 
 # B1 relational feature names used for importance diagnostic.
 B1_RELATIONAL_FEATURES = _feature_names("card_core_addr1")
@@ -905,6 +968,7 @@ def decide_candidate_selection(
             "largest_component_reject_pct": LARGEST_COMPONENT_REJECT_PCT,
             "recurring_entity_min_pct": RECURRING_ENTITY_MIN_PCT,
             "group_size_median_min": GROUP_SIZE_MEDIAN_MIN,
+            "median_repeat_gap_must_be_finite": MEDIAN_REPEAT_GAP_MUST_BE_FINITE,
             "preferred_coverage_min_pct": PREFERRED_COVERAGE_MIN_PCT,
             "preferred_largest_entity_max_pct": PREFERRED_LARGEST_ENTITY_MAX_PCT,
             "max_preferred_relations": MAX_PREFERRED_RELATIONS,

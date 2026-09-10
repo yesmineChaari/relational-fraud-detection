@@ -25,10 +25,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from src.config.paths import ROOT_DIR
 from src.models.significance import DEFAULT_N_RESAMPLES, compare_variants
 from src.models.train_lightgbm_baseline import RANDOM_SEED, write_json
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
 
 B0_VALIDATION_PREDICTIONS_PATH = (
     ROOT_DIR / "reports" / "baseline" / "validation_predictions.parquet"

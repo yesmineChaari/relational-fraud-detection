@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+from src.config.paths import ROOT_DIR
+
 RAW_DIR = ROOT_DIR / "data" / "raw"
 REPORT_DIR = ROOT_DIR / "reports" / "relational_audit"
 AUDIT_METADATA_FILE = REPORT_DIR / "audit_metadata.json"
