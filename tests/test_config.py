@@ -34,10 +34,7 @@ def write_config(path: Path, payload: dict) -> None:
 
 
 def sound_payload() -> dict:
-    return {
-        section: {key: 1 for key in keys}
-        for section, keys in SCREENING_CONFIG_SCHEMA.items()
-    }
+    return {section: {key: 1 for key in keys} for section, keys in SCREENING_CONFIG_SCHEMA.items()}
 
 
 class RootPathTests(unittest.TestCase):
@@ -73,8 +70,7 @@ class RootPathTests(unittest.TestCase):
         offenders = [
             p.relative_to(ROOT_DIR).as_posix()
             for p in (ROOT_DIR / "src").rglob("*.py")
-            if target in p.read_text(encoding="utf-8")
-            and p.name != "paths.py"
+            if target in p.read_text(encoding="utf-8") and p.name != "paths.py"
         ]
         self.assertEqual(offenders, [], f"Modules re-deriving the root: {offenders}")
 
@@ -95,9 +91,7 @@ class ScreeningConfigTests(unittest.TestCase):
             MEDIAN_REPEAT_GAP_MUST_BE_FINITE,
             config["structural"]["median_repeat_gap_must_be_finite"],
         )
-        self.assertEqual(
-            MAX_PREFERRED_RELATIONS, config["promotion"]["max_preferred_relations"]
-        )
+        self.assertEqual(MAX_PREFERRED_RELATIONS, config["promotion"]["max_preferred_relations"])
         self.assertEqual(
             SIGNAL_MODERATE_PR_AUC_LIFT, config["signal"]["signal_moderate_pr_auc_lift"]
         )
