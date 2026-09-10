@@ -311,9 +311,9 @@ fraud-relational-ml/
     └── test_experiment_ledger.py                      # Ledger completeness & disclosure suite
 ```
 
-The suite is **662 tests**: 661 in the gating run plus one throughput benchmark
+The suite is **792 tests**: 791 in the gating run plus one throughput benchmark
 that is marked and deselected. Continuous integration runs the gating set on
-every push and pull request. On a clean checkout 47 of them skip, because the
+every push and pull request. On a clean checkout 51 of them skip, because the
 raw dataset is gitignored and the tests that need it guard on its presence; the
 synthetic-fixture tests that carry the suite run regardless.
 
@@ -549,7 +549,7 @@ Four controls separate those confounds from the graph verdict. The three encoder
 
 `cross_fitted` embeds train rows with the K fold encoders and validation/test rows with a full-train encoder, and each encoder was initialised from a different seed. Nothing constrains independently initialised encoders to agree on a latent basis, so an embedding column denotes a different direction either side of the train/validation boundary. The published diagnostic measures exactly this: a standardised train-vs-validation mean gap of **0.390, with 11 of 32 columns above 0.5**, against 0.123-0.233 and 0-2 columns for every single-encoder block in the table.
 
-Its $-0.07556$ therefore confounds removing label leakage with misaligning the feature block, and is **not** evidence for what cross-fitting alone costs or gains. The verdict does not rest on it: the rule requires *both* verdict controls to reach parity, and `neighbourhood_only` -- a single-encoder block with no such defect -- does not. A corrected run should share one initialisation across the full-train and fold encoders, or align each fold encoder's output to the full-train encoder before assembling the block. The limitation is recorded in `reports/g1_controls/g1_control_summary.json` under `known_limitations`.
+Its $-0.07556$ therefore confounds removing label leakage with misaligning the feature block, and is **not** evidence for what cross-fitting alone costs or gains. The verdict does not rest on it: the rule requires *both* verdict controls to reach parity, and `neighbourhood_only` -- a single-encoder block with no such defect -- does not. A corrected run would share one initialisation across the full-train and fold encoders, or align each fold encoder's output to the full-train encoder before assembling the block. It was deliberately not run: a direct probe for label information in train-row embeddings found none at any detectable magnitude (train-minus-validation probe ROC-AUC of $+0.0122$ linear and $-0.0078$ nonlinear, inside a $0.02$ tolerance), so the confound the control exists to remove is absent and roughly eight encoder fits would only confirm that null. The limitation is recorded in `reports/g1_controls/g1_control_summary.json` under `known_limitations`.
 
 ---
 
@@ -941,7 +941,9 @@ test split.
 
 1. **The cross-fitting control is defective.** Recorded rather than hidden in
    Section 8: the folds were trained from different encoder initialisations, so
-   the control confounds cross-fitting with initialisation variance.
+   the control confounds cross-fitting with initialisation variance. The repair
+   was declined because the confound it targets was measured absent, so the
+   existing run stays uncitable as a clean control.
 2. **The frozen artifacts are not at convergence.** Deliberate — they are kept at
    the 6,000-round cap so published numbers remain reproducible — but it means
    frozen figures understate their models, and frozen G1 most of all. Quote the
@@ -978,13 +980,20 @@ argmax bias, and concentrated near a budget of 400 alerts per day.
 
 Remaining work, in priority order:
 
-1. **Corrected cross-fitting control** with a shared encoder initialisation,
-   repairing the defect in Section 8. Independent of the B1 line.
-2. **One-shot final test protocol.** The localisation has settled, so its stated
+1. **One-shot final test protocol.** The localisation has settled, so its stated
    precondition is met. The test partition is read exactly once, under a
    protocol written before it is opened.
-3. **Revisit the graph-stage recovery target.** With the summaries additive, a
+2. **Revisit the graph-stage recovery target.** With the summaries additive, a
    representation meant to recover the B1-card1 gain has at least two count
    factors to reproduce (`prior_count` and `prior_count_7d`), not one.
-4. **Combined multi-relation variant.** Low priority: `card1` and `card1_card2`
-   are not distinguishable on the paired bootstrap, so little is expected.
+
+Considered and declined, with the reasoning kept so either can be reopened:
+
+- **Corrected cross-fitting control.** The confound it removes was measured
+  absent (Section 8), so it would spend roughly eight encoder fits confirming a
+  null. The defect itself stays recorded in Section 17.
+- **Combined multi-relation variant over `card1` and `card1_card2`.** The two
+  overlap by construction ($98.42\%$ against $100\%$ coverage) and are not
+  distinguishable on the paired bootstrap, so the expected effect sits below the
+  refit noise floor of $0.00051$. A combination across structurally different
+  entity families would be a different, and more interesting, experiment.
