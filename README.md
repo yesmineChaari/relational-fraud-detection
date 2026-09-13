@@ -15,7 +15,7 @@ fraud-relational-ml/
 ├── 2. B0 Tabular Baseline (LightGBM)
 │     └── Frozen baseline: PR-AUC = 0.64914, ROC-AUC = 0.92502
 ├── 3. Relational Structural Audit & Graph Diagnostics (Stage A)
-│     └── 7 candidate relations evaluated for coverage, fragmentation & lift
+│     └── 9 candidate relations (7 original, 2 added by the G1-v2 re-screen)
 ├── 4. Train-Only Relational Candidate Screening (Stage B)
 │     └── Selection of optimal relational substrates without validation snooping
 ├── 5. Controlled Alternative B1 Benchmarks
@@ -24,8 +24,10 @@ fraud-relational-ml/
 │     └── GraphSAGE embedding + B0 predictors: PR-AUC = 0.62642, below both baselines
 ├── 7. G1 Attribution Controls (dilution, readout, cross-fitting, budget)
 │     └── Verdict: most of the regression was an artifact; corrected G1 reaches B0, not B1
-└── 8. Seed Variance Across Training Runs (5 seeds x B0 and B1-card1)
-      └── Gain direction holds; PR-AUC magnitude is confounded by the estimator cap
+├── 8. Seed Variance Across Training Runs (5 seeds x B0 and B1-card1)
+│     └── Gain direction holds; PR-AUC magnitude is confounded by the estimator cap
+└── 9. G1-v2: Cardinality-Aware Encoder (pre-registered, 3 seeds)
+      └── Loses to B1-card1 on every seed (mean -0.0288); Stage 2 gate not met
 ```
 
 ---
@@ -74,7 +76,8 @@ read as transactional attributes.
 identity field with 0.0% missingness at identifier-like cardinality.
 `R_emaildomain` (76.8% missing) was excluded as too sparse to build history on,
 and `P_emaildomain` was a marginal candidate not pursued in favour of the card
-fields.
+fields. Stage 0 of G1-v2 later screened it and rejected it: a single domain holds
+45.6% of covered volume (Section 8).
 
 This step was exploratory and domain-driven rather than a formal selection
 procedure. It produced the seven *candidate* entity definitions that Section 4
@@ -94,7 +97,7 @@ regardless of how they profiled.
 
 ## 4. Stage A: Relational Audit & Graph Structure Analysis
 
-We evaluated **7 candidate entity relations** to determine their topological suitability for fraud detection:
+We evaluated **9 candidate entity relations** to determine their topological suitability for fraud detection. The original seven were screened first; `email_domain` and `addr1` were added later by the G1-v2 Stage 0 re-screen (Section 8):
 
 ```python
 CANDIDATES = {
@@ -105,6 +108,8 @@ CANDIDATES = {
     "card_core_addr1": ["card1", "card2", "card3", "card5", "addr1"],
     "device_info": ["DeviceInfo"],
     "device_fingerprint": ["DeviceInfo", "id_30", "id_31", "id_33"],
+    "email_domain": ["P_emaildomain"],
+    "addr1": ["addr1"],
 }
 ```
 
@@ -119,6 +124,8 @@ CANDIDATES = {
 | **`card_core_addr1`** | **Promising** | 86.67% | 1.14% | 0.99% | 2.0 | 58.86% | 12.12 | 10.77 | **Shortlist** |
 | **`device_info`** | **Problematic** | 22.10% | 40.13% | 8.87% | 4.0 | 74.19% | 0.05 | 12.77 | **Reject** |
 | **`device_fingerprint`** | **Problematic** | 13.58% | 4.55% | 0.62% | 2.0 | 57.77% | 1.63 | 13.21 | **Reject** |
+| **`email_domain`** | **Problematic** | 84.45% | 45.61% | 38.52% | 232.0 | 100.0% | 0.02 | 4.86 | **Reject** |
+| **`addr1`** | **Promising** | 88.50% | 9.00% | 7.97% | 3.0 | 62.89% | 0.10 | 4.38 | **Shortlist** |
 
 ### Univariate Signal Measurement
 
@@ -151,6 +158,8 @@ Qualifiers are then ranked by `coverage × (covered lift − 1)` and at most **t
 ### Rejection Rationale
 - **`device_info`**: Catastrophic super-entity collapse — a single entity accounts for 40.13% of all covered volume (violating the <10% threshold).
 - **`device_fingerprint`**: Severe missingness — only covers 13.58% of transactions (violating the >50% threshold).
+- **`email_domain`**: Super-entity collapse — a single domain accounts for 45.61% of covered volume.
+- **`addr1`** passes the structural gates but is never preferred: its best covered-rows history lift ($1.20\times$) does not beat its own key-missingness flag ($1.81\times$) — the same trap as `card_core_addr1`.
 
 ---
 
@@ -203,7 +212,8 @@ fraud-relational-ml/
 │       ├── split_assignment.parquet                   # Frozen temporal train/val/test splits
 │       ├── relational_features_card_core_addr1.parquet# B1 card_core_addr1 features
 │       ├── relational_features_card1.parquet          # B1 card1 features
-│       └── relational_features_card1_card2.parquet    # B1 card1_card2 features
+│       ├── relational_features_card1_card2.parquet    # B1 card1_card2 features
+│       └── relational_features_addr1.parquet          # Stage 0 addr1 features
 ├── models/
 │   ├── lightgbm_baseline.txt                          # Frozen B0 LightGBM model
 │   ├── lightgbm_b1_card_core_addr1.txt                # B1 card_core_addr1 model
@@ -211,13 +221,17 @@ fraud-relational-ml/
 │   ├── lightgbm_b1_card1_card2.txt                    # B1 card1_card2 model
 │   ├── lightgbm_g1_card1.txt                          # G1 model, plus four attribution controls
 │   ├── graphsage_card1_encoder*.pt                    # Encoders: base, cross-fitted folds, variants
+│   ├── graphsage_card1_v2_encoder_*.pt                # G1-v2 encoders: full-train and fold encoders per seed
 │   ├── ablation/                                      # Eight ablation cells plus a five-seed panel
 │   ├── convergence_check/                             # Extended-cap and alternative-stopping runs
 │   ├── seed_variance/                                 # Five-seed B0 and B1-card1 panels
 │   ├── permuted_null/                                 # Permuted-entity null control runs
-│   └── fixed_budget/                                  # Ablation refits at 10,000 trees, no early stopping
+│   ├── fixed_budget/                                  # Ablation refits at 10,000 trees, no early stopping
+│   ├── stage0_screening/                              # Stage 0 addr1 check at the fixed budget
+│   └── g1_v2/                                         # G1-v2 fixed-budget runs: three seeds and the width null
 ├── configs/
-│   └── screening.json                                 # Stage A/B screening thresholds (policy, not invariants)
+│   ├── screening.json                                 # Stage A/B screening thresholds (policy, not invariants)
+│   └── g1_v2_preregistration.json                     # G1-v2 Stage 1 design and criteria, fixed before the runs
 ├── reports/
 │   ├── baseline/                                      # B0 metrics, metadata, importance
 │   ├── data_profile/                                  # Column-level profile of all 435 raw predictors
@@ -236,6 +250,9 @@ fraud-relational-ml/
 │   │   └── candidate_selection.json                   # reject / shortlist / preferred + gate results
 │   ├── relational_features/                           # Feature builder metadata manifests
 │   ├── permuted_null/                                 # Permuted-entity null runs, comparison table & verdict
+│   ├── stage0_screening/                              # Stage 0 addr1 check and the two-track verdict
+│   ├── graphsage/card1_v2/                            # G1-v2 encoder metadata and per-seed leakage gates
+│   ├── g1_v2/                                         # G1-v2 runs, seed table and the pre-registered verdict
 │   └── b1/
 │       ├── card_core_addr1/                           # B1 card_core_addr1 report suite
 │       ├── card1/                                     # B1 card1 report suite
@@ -252,7 +269,8 @@ fraud-relational-ml/
 │   │   ├── temporal_sampler.py                        # Target-anchored neighbour sampler
 │   │   ├── build_transaction_graph.py                 # card1 node & entity-edge tables
 │   │   ├── train_graphsage_encoder.py                 # Frozen G1 GraphSAGE encoder
-│   │   └── train_graphsage_variants.py                # G1 attribution-control encoders
+│   │   ├── train_graphsage_variants.py                # G1 attribution-control encoders
+│   │   └── train_graphsage_encoder_v2.py              # Cardinality-aware, cross-fitted G1-v2 encoder
 │   ├── features/
 │   │   ├── build_relational_features.py               # Generalized feature engineer
 │   │   └── screen_relations.py                        # Train-only screening module
@@ -284,7 +302,14 @@ fraud-relational-ml/
 │       ├── compare_converged_significance.py          # Paired-bootstrap CIs at the converged protocol
 │       ├── compare_stages.py                          # Cross-stage table spanning B0, B1 and G1
 │       ├── calibration_and_operating_points.py        # Reliability, alert budgets, cost sweep
-│       └── build_experiment_ledger.py                 # Index of every model artifact and its claims
+│       ├── build_experiment_ledger.py                 # Index of every model artifact and its claims
+│       ├── train_lightgbm_stage0_check.py             # Stage 0: addr1 on top of B1-card1, fixed budget
+│       ├── compare_stage0_candidates.py               # Stage 0 two-track verdict
+│       ├── g1v2_preregistration.py                    # Strict loader for the G1-v2 pre-registration
+│       ├── train_lightgbm_g1v2.py                     # G1-v2 fixed-budget LightGBM on B1-card1 + embedding
+│       ├── train_lightgbm_g1v2_controls.py            # G1-v2 width null (block permuted within split)
+│       ├── train_g1v2_seed_panel.py                   # The registered seed panel, one process per step
+│       └── compare_g1v2_verdict.py                    # G1-v2 verdict under the pre-registered criteria
 └── tests/
     ├── test_lightgbm_baseline.py                      # B0 unit test suite
     ├── test_lightgbm_relational.py                    # B1 merge & invariant test suite
@@ -293,8 +318,10 @@ fraud-relational-ml/
     ├── test_relational_models.py                      # Multi-model verification suite
     ├── test_temporal_sampler.py                       # Strictly-before sampling correctness
     ├── test_graphsage_encoder.py                      # Encoder & leakage-guard suite
+    ├── test_graphsage_encoder_v2.py                   # Counts past the fan-out cap, shared-init cross-fitting
     ├── test_lightgbm_g1.py                            # G1 merge suite
     ├── test_g1_controls.py                            # Attribution-control suite
+    ├── test_g1v2_verdict.py                           # Pre-registration schema, criteria & panel plan
     ├── test_seed_variance.py                          # Seed-variance & stratification suite
     ├── test_convergence_check.py                      # Convergence-check & cap-decision suite
     ├── test_significance.py                           # Shared paired-bootstrap module suite
@@ -314,9 +341,9 @@ fraud-relational-ml/
     └── test_experiment_ledger.py                      # Ledger completeness & disclosure suite
 ```
 
-The suite is **815 tests**: 814 in the gating run plus one throughput benchmark
-that is marked and deselected. Continuous integration runs the gating set on
-every push and pull request. On a clean checkout 52 of them skip, because the
+The suite is **891 tests**: 889 in the gating run plus two throughput benchmarks
+that are marked and deselected. Continuous integration runs the gating set on
+every push and pull request. On a clean checkout 53 of them skip, because the
 raw dataset is gitignored and the tests that need it guard on its presence; the
 synthetic-fixture tests that carry the suite run regardless.
 
@@ -447,21 +474,34 @@ python -m src.models.calibration_and_operating_points
 # 11. Experiment ledger over every model artifact
 python -m src.models.build_experiment_ledger
 
-# 12. Final test protocol. The one-shot read has been made (Section 17), and the
+# 12. G1-v2 Stage 0: re-audit with email_domain and addr1 added, the addr1
+#     fixed-budget check, then the two-track verdict
+python -m src.graph.analyze_relations
+python -m src.features.screen_relations
+python -m src.features.build_relational_features --relation addr1
+python -m src.models.train_lightgbm_stage0_check --skip-existing
+python -m src.models.compare_stage0_candidates
+
+# 13. G1-v2 Stage 1: the pre-registered seed panel -- cardinality-aware
+#     encoders, fixed-budget LightGBM, the width null, then the verdict
+python -m src.models.train_g1v2_seed_panel --list
+python -m src.models.train_g1v2_seed_panel
+
+# 14. Final test protocol. The one-shot read has been made (Section 17), and the
 #     executor now refuses to run at all, dry run included, because
 #     reports/final_test/ exists. Listed for provenance, not to be rerun:
 # python -m src.models.evaluate_final_test --execute
 
-# 13. Run the gating test suite
+# 15. Run the gating test suite
 python -m pytest -m "not benchmark" -q
 ```
 
-Step 13 excludes benchmarks deliberately. The suite contains one throughput
-measurement that asserts on wall-clock time; it is real information but it fails
-under machine load, so it is marked `benchmark` and kept out of the gating run.
-`python -m pytest -m benchmark` runs it on its own.
+Step 15 excludes benchmarks deliberately. The suite contains two throughput
+measurements that assert on wall-clock time; they are real information but they
+fail under machine load, so they are marked `benchmark` and kept out of the
+gating run. `python -m pytest -m benchmark` runs them on their own.
 
-Steps 11, 13 and 14 retrain nothing. They read persisted learning curves,
+Steps 7, 9, 10 and 11 retrain nothing. They read persisted learning curves,
 validation predictions and metadata manifests, so they complete in seconds to
 minutes rather than hours.
 
@@ -502,6 +542,15 @@ panel, and a single seed can be run on its own:
 ```bash
 python -m src.models.train_lightgbm_permuted_null --permutation-seed 3 --skip-existing
 ```
+
+The G1-v2 panel is three cross-fitted encoders (each a monitored full-train
+encoder plus three fold encoders, 35 to 100 minutes on CPU depending on machine
+load) and four fixed-budget LightGBM fits (about 20 minutes each, peak near
+4.5 GB). The driver runs every step in its own interpreter, strictly in
+sequence, and every training step resumes: a step killed for memory is picked up
+again by rerunning the panel, without recomputing any step already published.
+Seeds come from `configs/g1_v2_preregistration.json`, never from the command
+line.
 
 ---
 
@@ -557,7 +606,48 @@ Four controls separate those confounds from the graph verdict. The three encoder
 
 `cross_fitted` embeds train rows with the K fold encoders and validation/test rows with a full-train encoder, and each encoder was initialised from a different seed. Nothing constrains independently initialised encoders to agree on a latent basis, so an embedding column denotes a different direction either side of the train/validation boundary. The published diagnostic measures exactly this: a standardised train-vs-validation mean gap of **0.390, with 11 of 32 columns above 0.5**, against 0.123-0.233 and 0-2 columns for every single-encoder block in the table.
 
-Its $-0.07556$ therefore confounds removing label leakage with misaligning the feature block, and is **not** evidence for what cross-fitting alone costs or gains. The verdict does not rest on it: the rule requires *both* verdict controls to reach parity, and `neighbourhood_only` -- a single-encoder block with no such defect -- does not. A corrected run would share one initialisation across the full-train and fold encoders, or align each fold encoder's output to the full-train encoder before assembling the block. It was deliberately not run: a direct probe for label information in train-row embeddings found none at any detectable magnitude (train-minus-validation probe ROC-AUC of $+0.0122$ linear and $-0.0078$ nonlinear, inside a $0.02$ tolerance), so the confound the control exists to remove is absent and roughly eight encoder fits would only confirm that null. The limitation is recorded in `reports/g1_controls/g1_control_summary.json` under `known_limitations`.
+Its $-0.07556$ therefore confounds removing label leakage with misaligning the feature block, and is **not** evidence for what cross-fitting alone costs or gains. The verdict does not rest on it: the rule requires *both* verdict controls to reach parity, and `neighbourhood_only` -- a single-encoder block with no such defect -- does not. A corrected run would share one initialisation across the full-train and fold encoders, or align each fold encoder's output to the full-train encoder before assembling the block. It was deliberately not run: a direct probe for label information in train-row embeddings found none at any detectable magnitude (train-minus-validation probe ROC-AUC of $+0.0122$ linear and $-0.0078$ nonlinear, inside a $0.02$ tolerance), so the confound the control exists to remove is absent and roughly eight encoder fits would only confirm that null. The limitation is recorded in `reports/g1_controls/g1_control_summary.json` under `known_limitations`. G1-v2 (below) later shared one initialisation across all of its encoders, and the misalignment remained.
+
+### G1-v2: A Cardinality-Aware Encoder (`reports/stage0_screening/`, `reports/g1_v2/`)
+
+The controls above left one mechanism untested. `sample_fixed_fanout` finds the true number of admissible neighbours and discards it once the draw is capped at 10, and `masked_mean` is blind to how many neighbours contributed. card1's median entity has 4 prior transactions but its p95 is 84 and its p99 near 600, so the encoder could not see the history depth that `prior_count` -- B1-card1's strongest non-redundant summary -- carries. G1-v2 tested whether putting it back closes the gap to B1-card1, in stages gated on each other.
+
+**Stage 0: two more relations, re-screened.**
+
+| Track | Candidate | Test | Result | Verdict |
+| :--- | :--- | :--- | :--- | :--- |
+| A | `device_fingerprint` | Fraud-neighbour lift above card1's $8.49\times$ | $13.21\times$ | qualifies |
+| A | `device_info` | Same | $12.77\times$ | qualifies |
+| A | `email_domain` | Same | $4.86\times$ | does not qualify |
+| B | `addr1` | B1-card1 + four `addr1` summaries vs fixed-budget B1-card1, CI above zero | $-0.00263$ $[-0.00610, +0.00079]$ | `negative_result_stands` |
+
+Track A is deliberately lift-only and trains nothing: a flat count over a hub entity (one e-mail domain holds 45.6% of covered volume) mixes unrelated cardholders, a different failure from a capped graph sample, so a scalar-feature null would not be a valid veto there. Track B is a full fixed-budget fit, 0.65874 against 0.66138.
+
+**Stage 1: the design, fixed before any run** (`configs/g1_v2_preregistration.json`).
+
+- `count_admissible_neighbors` returns the count the sampler discarded, and the encoder takes its log at both layers. The readout is neighbourhood-only, the one readout that reached B0 parity above.
+- Train rows are embedded by three fold encoders that never saw their labels, validation and test rows by a full-train encoder, and all four start from one shared initialisation -- the remedy the cross-fitting limitation above named.
+- The downstream model is B1-card1's 439 predictors plus the 32 embedding columns (471), trained 10,000 rounds without early stopping and read against B1-card1 retrained the same way (0.66138). The encoder is credited only for what it adds beyond the scalar summaries.
+- A win required all four of: (a) the primary seed's interval above zero against B1-card1; (b) the real block's interval above zero against its own within-split permutation; (c) the leakage gate passing on every seed; (d) a positive delta on every seed.
+
+One property of this relation limits what the counts can add, and it was established before any run was read. card1 is a single flat relation, so every sampled neighbour shares the target's entity: counted up to the target's timestamp, each neighbour's history is the target's count minus one. The encoder therefore counts each neighbour up to its own timestamp, which is only its rank in the shared timeline, and the target's own count *is* `prior_count`, already among the 471 columns. What Stage 1 could test is whether an embedding that sees the count while it aggregates adds anything beyond the count.
+
+| Run | PR-AUC | $\Delta$ vs B1-card1 (fixed budget) | 95% CI | Probe gap | Alignment gap |
+| :--- | ---: | ---: | :--- | ---: | ---: |
+| B1-card1, fixed budget | 0.66138 | — | — | — | — |
+| G1-v2, seed 42 | 0.62894 | $-0.03244$ | $[-0.03757, -0.02738]$ | $+0.0041$ | 0.398 |
+| G1-v2, seed 43 | 0.63555 | $-0.02583$ | $[-0.03087, -0.02074]$ | $+0.0132$ | 0.607 |
+| G1-v2, seed 44 | 0.63324 | $-0.02813$ | $[-0.03329, -0.02301]$ | $+0.0126$ | 0.432 |
+| Seed 42 block, permuted within split | 0.64508 | $-0.01629$ | $[-0.02057, -0.01206]$ | — | — |
+
+The verdict is **`negative_result_stands`**: criteria (a), (b) and (d) fail and (c) passes. Every seed loses to B1-card1 by a margin whose interval excludes zero; the mean delta is $-0.02880$ with a seed standard deviation of $0.00336$. Stage 2 -- a heterogeneous graph adding a device relation -- stays closed, because its registered gate, a positive mean delta across seeds, is not met. The count-blind attribution run was registered to run only after a win, and was not run.
+
+1. **The real block is worse than its own permutation.** Real minus shuffled is $-0.01614$ $[-0.02123, -0.01106]$. Adding 32 uninformative columns costs $-0.01629$; the real columns cost about twice that, so the block is not merely inert width.
+2. **The leakage gate passing is not the same as the block transferring.** The linear probe found no label information in train-row embeddings on any seed (gaps $0.004$–$0.013$ against a $0.02$ tolerance). But train and validation rows sit in visibly shifted spaces: the alignment gap is 0.40–0.61, against 0.12–0.23 for single-encoder blocks and 0.39 for the unaligned control above. The shared initialisation did not keep the fold encoders aligned with the full-train encoder. The probe fits within one split at a time, so it cannot see a shift between splits, and a tree model learning train-side structure in shifted coordinates is exactly what would score below a permutation. The count inputs grow over time and may account for part of the shift; these runs cannot separate the two.
+3. **The encoder learned little on its own.** Its standalone validation PR-AUC was 0.127–0.129 on every seed, no better than the count-blind neighbourhood-only control (0.135).
+4. **The comparison is not exposed to selection.** Both arms ran exactly 10,000 rounds, so the argmax and matched-budget estimates coincide at $-0.03248$, the plateau over the last 2,000 rounds gives $-0.03255$, and ROC-AUC at the same iteration is lower as well ($-0.00908$).
+
+The graph question on card1 closes on both architectures tried. Neither the count-blind encoder of the controls above nor the count-aware one reaches B1-card1.
 
 ---
 
@@ -928,7 +1018,7 @@ retraining.
 
 ## 16. Experiment Ledger (`reports/ledger/`)
 
-Sixty-three model artifacts now sit under `models/`. The ledger indexes every one
+Eighty model artifacts now sit under `models/`. The ledger indexes every one
 of them with its stage, role, purpose, the claims resting on it, its limitations
 and — explicitly — what it must not be used for.
 
@@ -1001,11 +1091,14 @@ strength of these results; work they motivate needs a newly held-out partition.
 
 ## 18. Known Limitations
 
-1. **The cross-fitting control is defective.** Recorded rather than hidden in
-   Section 8: the folds were trained from different encoder initialisations, so
-   the control confounds cross-fitting with initialisation variance. The repair
-   was declined because the confound it targets was measured absent, so the
-   existing run stays uncitable as a clean control.
+1. **Cross-fitted embedding blocks are misaligned across the train/validation
+   boundary.** The original cross-fitting control trained its folds from
+   different initialisations (Section 8). G1-v2 shared one initialisation across
+   every encoder and the alignment gap did not close (0.40–0.61, against
+   0.12–0.23 for single-encoder blocks). A block assembled from several encoders
+   cannot be read at face value, and the within-split leakage probe cannot
+   detect the shift. Aligning each fold encoder's output to the full-train
+   encoder is the remaining untried remedy.
 2. **The frozen artifacts are not at convergence.** Deliberate — they are kept at
    the 6,000-round cap so published numbers remain reproducible — but it means
    frozen figures understate their models, and frozen G1 most of all. Quote the
@@ -1048,17 +1141,20 @@ Remaining work, in priority order:
 1. **A fresh holdout before any further model change.** The test partition is
    spent, so anything motivated by Section 17 must be judged on data held out
    from now on, under a protocol written before it is read.
-2. **Revisit the graph-stage recovery target.** With the summaries additive, a
-   representation meant to recover the B1-card1 gain has at least two count
-   factors to reproduce (`prior_count` and `prior_count_7d`), not one.
+2. **The graph stage is closed on card1.** G1-v2 (Section 8) put the discarded
+   neighbourhood count back into the encoder and still lost to B1-card1 on all
+   three pre-registered seeds. Its Stage 2 gate was not met, so the
+   heterogeneous card1-plus-device graph was not built. Reopening either needs a
+   new pre-registration, not a rerun.
 
 Considered and declined, with the reasoning kept so either can be reopened:
 
-- **Corrected cross-fitting control.** The confound it removes was measured
-  absent (Section 8), so it would spend roughly eight encoder fits confirming a
-  null. The defect itself stays recorded in Section 18.
+- **Corrected cross-fitting control.** Declined as a standalone control, then
+  run in effect inside G1-v2: a shared initialisation did not remove the
+  train/validation basis shift (Section 18).
 - **Combined multi-relation variant over `card1` and `card1_card2`.** The two
   overlap by construction ($98.42\%$ against $100\%$ coverage) and are not
   distinguishable on the paired bootstrap, so the expected effect sits below the
   refit noise floor of $0.00051$. A combination across structurally different
-  entity families would be a different, and more interesting, experiment.
+  entity families would be a different, and more interesting, experiment; G1-v2
+  registered one (card1 plus a device relation) and its gate was not met.
