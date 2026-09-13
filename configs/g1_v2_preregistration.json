@@ -1,0 +1,38 @@
+{
+  "_comment": [
+    "Stage 1 of the G1-v2 plan: the cardinality-aware card1 encoder. Fixed and",
+    "committed before any Stage 1 run. src/models/compare_g1v2_verdict.py reads",
+    "every run against this file and refuses a run whose design does not match",
+    "it. Every key is required; an unknown key is rejected rather than ignored."
+  ],
+
+  "design": {
+    "relation": "card1",
+    "encoder_readout": "neighbourhood_only",
+    "encoder_seeds": [42, 43, 44],
+    "primary_encoder_seed": 42,
+    "cross_fit_folds": 3,
+    "shared_fold_initialisation": true,
+    "lightgbm_fixed_budget": 10000,
+    "lightgbm_seed": 42,
+    "reference": "B1-card1 retrained at the same fixed budget: reports/fixed_budget/card1/b1_card1/fixed10000_seed42"
+  },
+
+  "criteria": {
+    "_comment": "All four must hold. Any failure is reported as negative_result_stands; seeds are never re-drawn.",
+    "a_beats_b1_card1": "Primary encoder seed: the 95% paired-bootstrap CI (10,000 resamples) on PR-AUC(G1-v2) - PR-AUC(B1-card1) lies entirely above zero.",
+    "b_beats_width_null": "Primary encoder seed: the 95% paired-bootstrap CI on PR-AUC(G1-v2) - PR-AUC(the same block permuted within each split) lies entirely above zero.",
+    "c_leakage_gate": "Every encoder seed: informativeness_gap parity holds (train minus validation probe ROC-AUC at most 0.02) and cross_fit_provenance is sound.",
+    "d_sign_consistent": "Every encoder seed: the observed PR-AUC delta against B1-card1 is positive."
+  },
+
+  "stage2_gate": {
+    "directional_win": "Stage 2 may start only if the mean observed PR-AUC delta against B1-card1 across the encoder seeds is positive. Stage 0 Track A's condition (a relation whose fraud_neighbor_lift beats card1's) is already met by device_info and device_fingerprint."
+  },
+
+  "diagnostics": {
+    "_comment": "Reported beside the verdict; neither can change it.",
+    "partition_alignment": "Standardised train-vs-validation mean gap per embedding column, reported in every seed's leakage gate to confirm the shared initialisation removed the unaligned-basis defect of the earlier cross-fitted control.",
+    "count_blind_attribution": "The primary seed re-run with every count input zeroed. Runs only if all four criteria pass; it attributes a win to the count inputs rather than to the embedding alone."
+  }
+}
