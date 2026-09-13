@@ -8,3 +8,4 @@ device_info,DeviceInfo,3
 device_fingerprint,DeviceInfo + id_30 + id_31 + id_33,3
 email_domain,P_emaildomain,3
 addr1,addr1,3
+uid,card1 + addr1 + account_start_day,3

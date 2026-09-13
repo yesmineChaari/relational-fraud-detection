@@ -332,12 +332,13 @@ FAMILIES: list[dict[str, Any]] = [
             "B1-card1 plus four history summaries over one further relation, "
             "trained at the fixed 10,000-round budget and read against the "
             "fixed-budget B1-card1 reference. Asks whether one more relation adds "
-            "anything beyond card1; neither addr1 (Stage 0) nor device_fingerprint "
-            "(the Stage 2 pre-check) did."
+            "anything beyond card1; none of addr1 (Stage 0), device_fingerprint "
+            "(the Stage 2 pre-check) or uid (the G2 scalar gate) did."
         ),
         "claims": [
             "The Stage 0 Track B verdict in reports/stage0_screening/stage0_verdict.json",
             "The closure of G1-v2 Stage 2 by its device_fingerprint pre-check",
+            "The closure of G2 by its uid scalar gate",
         ],
         "metrics": lambda m: REPORTS_DIR / "stage0_screening" / m.group(1) / "metrics.json",
         "metadata": lambda m: REPORTS_DIR / "stage0_screening" / m.group(1) / "metadata.json",

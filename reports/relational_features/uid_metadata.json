@@ -1,0 +1,37 @@
+{
+  "relation_name": "uid",
+  "group_columns": [
+    "card1",
+    "addr1",
+    "account_start_day"
+  ],
+  "derived_group_columns": {
+    "account_start_day": {
+      "inputs": [
+        "TransactionDT",
+        "D1"
+      ],
+      "definition": "floor(TransactionDT / 86400) - D1"
+    }
+  },
+  "feature_names": [
+    "uid_prior_count",
+    "uid_prior_count_24h",
+    "uid_prior_count_7d",
+    "uid_time_since_previous_hours"
+  ],
+  "strict_temporal_rule": "TransactionDT_previous < TransactionDT_current",
+  "window_24h_seconds": 86400,
+  "window_7d_seconds": 604800,
+  "missing_group_policy": "If any group component is missing, counts are 0 and recency is NaN.",
+  "equal_timestamp_policy": "Rows at the same timestamp do not observe one another; each sees only strictly earlier timestamp blocks.",
+  "history_across_splits": "History is continuous across train, validation, and test; it is never reset at split boundaries.",
+  "input_path": "data/processed/model_dataset.parquet",
+  "output_path": "data/processed/relational_features_uid.parquet",
+  "row_count": 590540,
+  "unique_transaction_count": 590540,
+  "valid_group_row_count": 523746,
+  "invalid_group_row_count": 66794,
+  "target_labels_used": false,
+  "generated_at_utc": "2026-09-13T10:26:44.224316+00:00"
+}

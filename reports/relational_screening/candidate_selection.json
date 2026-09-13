@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-09-12T18:27:58.734186+00:00",
+  "generated_at_utc": "2026-09-13T10:26:38.728649+00:00",
   "stage_a_only": true,
   "validation_used_for_selection": false,
   "final_test_evaluated": false,
@@ -182,6 +182,31 @@
       },
       "key_missingness_pr_auc_lift": 1.8078849313151777,
       "coverage_weighted_signal": 0.17662366679310204
+    },
+    "uid": {
+      "decision": "shortlist",
+      "structural_classification": "viable",
+      "best_univariate_feature": "uid_time_since_previous_hours",
+      "best_univariate_pr_auc": 0.04400916961760377,
+      "best_univariate_roc_auc": 0.5102083939800439,
+      "best_univariate_pr_auc_lift": 1.2513703754426888,
+      "best_univariate_direction": "lower_is_fraud",
+      "best_univariate_pr_auc_covered": 0.05597188505403802,
+      "best_univariate_pr_auc_lift_covered": 1.9407059769408272,
+      "best_univariate_roc_auc_covered": 0.3280686169710565,
+      "overall_feature_signal_strength": "moderate",
+      "coverage_pct": 88.44665173279662,
+      "largest_entity_share_pct": 0.0872492950311663,
+      "reason": "passed structural screening",
+      "promotion_gates": {
+        "structural_classification_is_promising": false,
+        "coverage_at_least_preferred_minimum": true,
+        "largest_entity_below_preferred_maximum": true,
+        "history_signal_at_least_moderate": true,
+        "history_signal_exceeds_key_missingness": true
+      },
+      "key_missingness_pr_auc_lift": 1.802322252349054,
+      "coverage_weighted_signal": 0.8320229392544556
     }
   }
 }

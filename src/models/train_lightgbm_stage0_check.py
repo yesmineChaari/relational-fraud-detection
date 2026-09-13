@@ -18,6 +18,10 @@ Each relation's purpose is recorded in `PURPOSE`, fixed before its run:
   G1-v2 alignment diagnostic measured -- is not built. Its largest entity holds
   3.6% of covered rows, so unlike the hub relations Stage 0 Track A screened by
   lift alone, a flat count is a fair test of its history.
+* `uid` -- the G2 scalar gate. `uid = card1 | addr1 | account_start_day`
+  (src/features/derived_keys.py). A graph can only find what the key's history
+  holds, so if four scalar summaries on uid cannot beat B1-card1, the uid graph
+  is not built.
 
 Nothing here writes to a frozen or fixed-budget reference artifact; every
 artifact the comparison depends on is hash-pinned before and after the run.
@@ -88,6 +92,10 @@ PURPOSE = {
     "device_fingerprint": (
         "Stage 2 pre-check: Stage 2 (a card1 + device_fingerprint graph) is built only "
         "if these four scalar summaries meet the bar below; otherwise Stage 2 closes."
+    ),
+    "uid": (
+        "G2 gate: the uid graph is built only if B1-card1 + four uid summaries beats "
+        "fixed-budget B1-card1 with a CI above zero."
     ),
 }
 

@@ -35,3 +35,9 @@ addr1_prior_count,addr1_time_since_previous_hours,-0.32109716749816186,0.0,36554
 addr1_prior_count_24h,addr1_prior_count_7d,0.959406904021541,0.0,413378,addr1
 addr1_prior_count_24h,addr1_time_since_previous_hours,-0.5277863160641839,0.0,365542,addr1
 addr1_prior_count_7d,addr1_time_since_previous_hours,-0.49691524297852385,0.0,365542,addr1
+uid_prior_count,uid_prior_count_24h,0.4751195669652694,0.0,413378,uid
+uid_prior_count,uid_prior_count_7d,0.6846123443783215,0.0,413378,uid
+uid_prior_count,uid_time_since_previous_hours,-0.04568957780046875,2.3635857814361643e-99,214209,uid
+uid_prior_count_24h,uid_prior_count_7d,0.7889567399146848,0.0,413378,uid
+uid_prior_count_24h,uid_time_since_previous_hours,-0.8314202527668816,0.0,214209,uid
+uid_prior_count_7d,uid_time_since_previous_hours,-0.774216595146308,0.0,214209,uid
