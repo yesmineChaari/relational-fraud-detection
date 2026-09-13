@@ -23,6 +23,7 @@ RELATION_REGISTRY: dict[str, list[str]] = {
     "card1": ["card1"],
     "card1_card2": ["card1", "card2"],
     "addr1": ["addr1"],
+    "device_fingerprint": ["DeviceInfo", "id_30", "id_31", "id_33"],
 }
 
 # ---------------------------------------------------------------------------

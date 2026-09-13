@@ -1,0 +1,2 @@
+metric,n_resamples,observed_delta,bootstrap_mean_delta,bootstrap_std_delta,ci_lower_95,ci_upper_95,excludes_zero,random_seed,candidate,reference,validation_row_count
+pr_auc,10000,-0.0004936664902952526,-0.0005115116888710262,0.0013407858873037224,-0.0031402691615649734,0.0020902721269407034,False,42,stage0_device_fingerprint,b1_card1_fixed_budget,88581

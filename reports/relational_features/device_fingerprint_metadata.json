@@ -1,0 +1,29 @@
+{
+  "relation_name": "device_fingerprint",
+  "group_columns": [
+    "DeviceInfo",
+    "id_30",
+    "id_31",
+    "id_33"
+  ],
+  "feature_names": [
+    "device_fingerprint_prior_count",
+    "device_fingerprint_prior_count_24h",
+    "device_fingerprint_prior_count_7d",
+    "device_fingerprint_time_since_previous_hours"
+  ],
+  "strict_temporal_rule": "TransactionDT_previous < TransactionDT_current",
+  "window_24h_seconds": 86400,
+  "window_7d_seconds": 604800,
+  "missing_group_policy": "If any group component is missing, counts are 0 and recency is NaN.",
+  "equal_timestamp_policy": "Rows at the same timestamp do not observe one another; each sees only strictly earlier timestamp blocks.",
+  "history_across_splits": "History is continuous across train, validation, and test; it is never reset at split boundaries.",
+  "input_path": "data/processed/model_dataset.parquet",
+  "output_path": "data/processed/relational_features_device_fingerprint.parquet",
+  "row_count": 590540,
+  "unique_transaction_count": 590540,
+  "valid_group_row_count": 71120,
+  "invalid_group_row_count": 519420,
+  "target_labels_used": false,
+  "generated_at_utc": "2026-09-13T08:47:16.231383+00:00"
+}

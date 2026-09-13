@@ -27,7 +27,7 @@ fraud-relational-ml/
 ├── 8. Seed Variance Across Training Runs (5 seeds x B0 and B1-card1)
 │     └── Gain direction holds; PR-AUC magnitude is confounded by the estimator cap
 └── 9. G1-v2: Cardinality-Aware Encoder (pre-registered, 3 seeds)
-      └── Loses to B1-card1 on every seed (mean -0.0288); Stage 2 gate not met
+      └── Loses to B1-card1 on every seed (mean -0.0288); Stage 2 closed by its pre-check
 ```
 
 ---
@@ -213,7 +213,8 @@ fraud-relational-ml/
 │       ├── relational_features_card_core_addr1.parquet# B1 card_core_addr1 features
 │       ├── relational_features_card1.parquet          # B1 card1 features
 │       ├── relational_features_card1_card2.parquet    # B1 card1_card2 features
-│       └── relational_features_addr1.parquet          # Stage 0 addr1 features
+│       ├── relational_features_addr1.parquet          # Stage 0 addr1 features
+│       └── relational_features_device_fingerprint.parquet # Stage 2 pre-check features
 ├── models/
 │   ├── lightgbm_baseline.txt                          # Frozen B0 LightGBM model
 │   ├── lightgbm_b1_card_core_addr1.txt                # B1 card_core_addr1 model
@@ -227,7 +228,7 @@ fraud-relational-ml/
 │   ├── seed_variance/                                 # Five-seed B0 and B1-card1 panels
 │   ├── permuted_null/                                 # Permuted-entity null control runs
 │   ├── fixed_budget/                                  # Ablation refits at 10,000 trees, no early stopping
-│   ├── stage0_screening/                              # Stage 0 addr1 check at the fixed budget
+│   ├── stage0_screening/                              # addr1 and device_fingerprint checks, fixed budget
 │   └── g1_v2/                                         # G1-v2 fixed-budget runs: three seeds and the width null
 ├── configs/
 │   ├── screening.json                                 # Stage A/B screening thresholds (policy, not invariants)
@@ -250,7 +251,7 @@ fraud-relational-ml/
 │   │   └── candidate_selection.json                   # reject / shortlist / preferred + gate results
 │   ├── relational_features/                           # Feature builder metadata manifests
 │   ├── permuted_null/                                 # Permuted-entity null runs, comparison table & verdict
-│   ├── stage0_screening/                              # Stage 0 addr1 check and the two-track verdict
+│   ├── stage0_screening/                              # addr1 and device_fingerprint checks, Stage 0 verdict
 │   ├── graphsage/card1_v2/                            # G1-v2 encoder metadata and per-seed leakage gates
 │   ├── g1_v2/                                         # G1-v2 runs, seed table and the pre-registered verdict
 │   └── b1/
@@ -303,7 +304,7 @@ fraud-relational-ml/
 │       ├── compare_stages.py                          # Cross-stage table spanning B0, B1 and G1
 │       ├── calibration_and_operating_points.py        # Reliability, alert budgets, cost sweep
 │       ├── build_experiment_ledger.py                 # Index of every model artifact and its claims
-│       ├── train_lightgbm_stage0_check.py             # Stage 0: addr1 on top of B1-card1, fixed budget
+│       ├── train_lightgbm_stage0_check.py             # One relation's summaries on B1-card1, fixed budget
 │       ├── compare_stage0_candidates.py               # Stage 0 two-track verdict
 │       ├── g1v2_preregistration.py                    # Strict loader for the G1-v2 pre-registration
 │       ├── train_lightgbm_g1v2.py                     # G1-v2 fixed-budget LightGBM on B1-card1 + embedding
@@ -324,6 +325,7 @@ fraud-relational-ml/
     ├── test_g1_controls.py                            # Attribution-control suite
     ├── test_g1v2_verdict.py                           # Pre-registration schema, criteria & panel plan
     ├── test_g1v2_alignment.py                         # Procrustes recovery & diagnostic layout
+    ├── test_stage0_check.py                           # Per-relation check paths, purposes & ledger match
     ├── test_seed_variance.py                          # Seed-variance & stratification suite
     ├── test_convergence_check.py                      # Convergence-check & cap-decision suite
     ├── test_significance.py                           # Shared paired-bootstrap module suite
@@ -343,7 +345,7 @@ fraud-relational-ml/
     └── test_experiment_ledger.py                      # Ledger completeness & disclosure suite
 ```
 
-The suite is **898 tests**: 896 in the gating run plus two throughput benchmarks
+The suite is **904 tests**: 902 in the gating run plus two throughput benchmarks
 that are marked and deselected. Continuous integration runs the gating set on
 every push and pull request. On a clean checkout 53 of them skip, because the
 raw dataset is gitignored and the tests that need it guard on its presence; the
@@ -483,6 +485,9 @@ python -m src.features.screen_relations
 python -m src.features.build_relational_features --relation addr1
 python -m src.models.train_lightgbm_stage0_check --skip-existing
 python -m src.models.compare_stage0_candidates
+#     Stage 2 pre-check: device_fingerprint's four summaries on top of B1-card1
+python -m src.features.build_relational_features --relation device_fingerprint
+python -m src.models.train_lightgbm_stage0_check --relation device_fingerprint --skip-existing
 
 # 13. G1-v2 Stage 1: the pre-registered seed panel -- cardinality-aware
 #     encoders, fixed-budget LightGBM, the width null, then the verdict
@@ -663,6 +668,14 @@ The verdict is **`negative_result_stands`**: criteria (a), (b) and (d) fail and 
 Both conditions hold, so the misalignment explanation is supported: alignment brings the gap well inside the single-encoder range (at most 0.233) and recovers $+0.01408$. It also locates the rest of the deficit. Aligned, the real block is statistically indistinguishable from a random block of the same width, so its content adds nothing beyond B1-card1's four scalars, and the remaining $-0.01835$ is what 32 extra columns cost this LightGBM configuration. The check is post hoc and does not revise the verdict.
 
 The graph question on card1 closes on both architectures tried. Neither the count-blind encoder of the controls above nor the count-aware one reaches B1-card1, and once aligned the count-aware block is worth exactly its width.
+
+**Stage 2: closed by its pre-check** (`reports/stage0_screening/device_fingerprint/`). Stage 2 would have added `device_fingerprint`, the Stage 0 relation with the highest neighbour lift, as a second graph relation. Two facts argued for testing it cheaply first: it reaches only 7.25% of validation rows, and the alignment check had shown that a 32-column block costs about $0.018$ PR-AUC before its content counts for anything. Its largest entity holds only 3.6% of covered rows, so -- unlike the hub relations Stage 0 screened by lift alone -- a flat count is a fair test of its history. The rule was fixed before the run: build Stage 2 only if B1-card1 plus four `device_fingerprint` summaries beats fixed-budget B1-card1 with an interval above zero.
+
+| Run | PR-AUC | $\Delta$ vs B1-card1 (fixed budget) | 95% CI |
+| :--- | ---: | ---: | :--- |
+| B1-card1 + `device_fingerprint` summaries | 0.66088 | $-0.00049$ | $[-0.00314, +0.00209]$ |
+
+It does not. The device relation's history adds nothing measurable beyond card1's, so a graph over it, which would also pay the width cost, was not built. Stage 2 is closed, and with it the G1-v2 plan.
 
 ---
 
@@ -1033,7 +1046,7 @@ retraining.
 
 ## 16. Experiment Ledger (`reports/ledger/`)
 
-Eighty-one model artifacts now sit under `models/`. The ledger indexes every one
+Eighty-two model artifacts now sit under `models/`. The ledger indexes every one
 of them with its stage, role, purpose, the claims resting on it, its limitations
 and — explicitly — what it must not be used for.
 
@@ -1159,9 +1172,11 @@ Remaining work, in priority order:
    from now on, under a protocol written before it is read.
 2. **The graph stage is closed on card1.** G1-v2 (Section 8) put the discarded
    neighbourhood count back into the encoder and still lost to B1-card1 on all
-   three pre-registered seeds. Its Stage 2 gate was not met, so the
-   heterogeneous card1-plus-device graph was not built. Reopening either needs a
-   new pre-registration, not a rerun.
+   three pre-registered seeds; aligned, its block is worth only its width. Its
+   Stage 2 gate was not met, and a cheaper pre-check then showed
+   `device_fingerprint`'s own history adds nothing to B1-card1 ($-0.00049$, CI
+   spans zero), so the heterogeneous card1-plus-device graph was not built.
+   Reopening either needs a new pre-registration, not a rerun.
 
 Considered and declined, with the reasoning kept so either can be reopened:
 

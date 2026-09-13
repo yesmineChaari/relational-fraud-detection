@@ -1,27 +1,26 @@
-"""Stage 0 Track B (G1-v2 plan): does addr1 add anything to B1-card1?
+"""Fixed-budget checks: does one more relation add anything to B1-card1?
 
-`addr1` alone has never been tested -- it was only ever combined into the
-rejected `card_core_addr1` key, whose rejection was attributed to a
-missingness confound in the *combined* key rather than necessarily to
-`addr1`'s own signal (see `reports/relational_screening/candidate_selection.json`'s
-`addr1` entry and the G1-v2 plan, section 1.5). This trains B1-card1's 439
-predictors plus addr1's four scalar relational features (443 total) and reads
-whether the extra four columns move PR-AUC.
+Each check trains B1-card1's 439 predictors plus one further relation's four
+scalar history summaries (443 total) at the fixed 10,000-round budget with early
+stopping disabled, and reads it against B1-card1 retrained the same way
+(reports/fixed_budget/card1/b1_card1/). A fixed-budget candidate read against the
+early-stopped canonical B1-card1 would reintroduce the argmax asymmetry the
+fixed-budget protocol exists to remove, so only the feature manifest differs
+from the reference.
 
-Trained at the fixed 10,000-round budget with early stopping disabled, reusing
-`train_ablation_fixed_budget.py`'s protocol: any argmax-of-a-validation-curve
-comparison rewards whichever arm was granted more rounds (README, "selection-
-bias correction"). For the same reason, the reference this candidate is
-compared against is the fixed-budget B1-card1 rerun already published under
-`reports/fixed_budget/card1/b1_card1/`, not the early-stopped canonical
-`reports/b1/card1/` artifact -- comparing a fixed-budget candidate against an
-early-stopped reference would reintroduce exactly the asymmetry the
-fixed-budget protocol exists to remove. Only the feature manifest differs
-between this run and that reference; every other setting matches it exactly.
+Each relation's purpose is recorded in `PURPOSE`, fixed before its run:
 
-Nothing here writes to a frozen or fixed-budget reference artifact. Outputs
-land under their own report and model trees, and every artifact this
-comparison depends on is hash-pinned before and after the run.
+* `addr1` -- Stage 0 Track B of the G1-v2 plan. Never tested alone; it was only
+  ever combined into the rejected `card_core_addr1` key.
+* `device_fingerprint` -- the pre-check for Stage 2. Stage 2 would add this
+  relation to the graph. If its four scalar summaries cannot beat B1-card1, a
+  graph over the same relation -- which also pays the 32-column width cost the
+  G1-v2 alignment diagnostic measured -- is not built. Its largest entity holds
+  3.6% of covered rows, so unlike the hub relations Stage 0 Track A screened by
+  lift alone, a flat count is a fair test of its history.
+
+Nothing here writes to a frozen or fixed-budget reference artifact; every
+artifact the comparison depends on is hash-pinned before and after the run.
 """
 
 from __future__ import annotations
@@ -39,13 +38,8 @@ import pandas as pd
 import sklearn
 
 from src.config.paths import ROOT_DIR
-from src.features.build_relational_features import (
-    RELATION_REGISTRY,
-    _feature_names,
-)
-from src.features.build_relational_features import (
-    _output_path as _rel_output_path,
-)
+from src.features.build_relational_features import RELATION_REGISTRY, _feature_names
+from src.features.build_relational_features import _output_path as _rel_output_path
 from src.models.significance import compare_variants
 from src.models.train_ablation_fixed_budget import FIXED_BUDGET
 from src.models.train_ablation_fixed_budget import (
@@ -89,87 +83,87 @@ RELATION = "addr1"
 CARD1_RELATION = "card1"
 REFERENCE_RUN_NAME = "b1_card1"
 
+PURPOSE = {
+    "addr1": ("Stage 0 Track B: does addr1, never tested on its own, add anything to B1-card1?"),
+    "device_fingerprint": (
+        "Stage 2 pre-check: Stage 2 (a card1 + device_fingerprint graph) is built only "
+        "if these four scalar summaries meet the bar below; otherwise Stage 2 closes."
+    ),
+}
+
 EXPECTED_B1_CARD1_FEATURE_COUNT = 439
 EXPECTED_STAGE0_FEATURE_COUNT = 443
 
-REPORT_DIR = ROOT_DIR / "reports" / "stage0_screening" / RELATION
+REPORT_ROOT = ROOT_DIR / "reports" / "stage0_screening"
 MODEL_DIR = ROOT_DIR / "models" / "stage0_screening"
-MODEL_PATH = MODEL_DIR / f"lightgbm_stage0_{RELATION}.txt"
-METRICS_PATH = REPORT_DIR / "metrics.json"
-METADATA_PATH = REPORT_DIR / "metadata.json"
-FEATURE_IMPORTANCE_PATH = REPORT_DIR / "feature_importance.csv"
-VALIDATION_PREDICTIONS_PATH = REPORT_DIR / "validation_predictions.parquet"
-LEARNING_CURVE_PATH = REPORT_DIR / "learning_curve.csv"
-COMPARISON_PATH = REPORT_DIR / "comparison_to_b1_card1_fixed_budget.csv"
 
 PROTOCOL = "fixed_budget_no_early_stopping"
 
-# The pre-registered bar (G1-v2 plan, Stage 0 Track B, step 5): report as an
-# independent win only if the 95% CI excludes zero on the positive side.
 PRE_REGISTERED_BAR = (
     "Independent win only if the 95% paired-bootstrap CI on "
     "PR-AUC(candidate) - PR-AUC(b1_card1_fixed_budget) excludes zero on the positive side."
 )
 
 
-def _stage0_artifact_paths() -> list[Path]:
-    return [
-        MODEL_PATH,
-        METRICS_PATH,
-        METADATA_PATH,
-        FEATURE_IMPORTANCE_PATH,
-        VALIDATION_PREDICTIONS_PATH,
-        LEARNING_CURVE_PATH,
-        COMPARISON_PATH,
-    ]
+def stage0_paths(relation: str) -> dict[str, Path]:
+    if relation not in PURPOSE:
+        raise ValueError(f"No check is defined for {relation!r}; defined: {sorted(PURPOSE)}.")
+    report_dir = REPORT_ROOT / relation
+    return {
+        "report_dir": report_dir,
+        "model": MODEL_DIR / f"lightgbm_stage0_{relation}.txt",
+        "metrics": report_dir / "metrics.json",
+        "metadata": report_dir / "metadata.json",
+        "feature_importance": report_dir / "feature_importance.csv",
+        "validation_predictions": report_dir / "validation_predictions.parquet",
+        "learning_curve": report_dir / "learning_curve.csv",
+        "comparison": report_dir / "comparison_to_b1_card1_fixed_budget.csv",
+    }
 
 
-def stage0_run_is_complete() -> bool:
-    return all(path.exists() for path in _stage0_artifact_paths())
+METADATA_PATH = stage0_paths(RELATION)["metadata"]
+
+
+def stage0_run_is_complete(relation: str = RELATION) -> bool:
+    return all(path.exists() for key, path in stage0_paths(relation).items() if key != "report_dir")
 
 
 def load_stage0_datasets(
     b0_metadata: dict[str, Any],
+    relation: str = RELATION,
 ) -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
-    """Train/validation frames carrying B0 + card1's 4 scalars + addr1's 4 scalars."""
-    if RELATION not in RELATION_REGISTRY:
-        raise ValueError(f"Unknown relation: {RELATION!r}. Supported: {sorted(RELATION_REGISTRY)}.")
-
-    addr1_path = _rel_output_path(RELATION)
-    if not addr1_path.exists():
+    """Train/validation frames carrying B0 + card1's 4 scalars + `relation`'s 4 scalars."""
+    if relation not in RELATION_REGISTRY:
+        raise ValueError(f"Unknown relation: {relation!r}. Supported: {sorted(RELATION_REGISTRY)}.")
+    extra_path = _rel_output_path(relation)
+    if not extra_path.exists():
         raise FileNotFoundError(
-            f"Relational features not found for relation {RELATION!r}. "
-            f"Run: python -m src.features.build_relational_features --relation {RELATION}\n"
-            f"Expected: {addr1_path}"
+            f"Relational features not found for relation {relation!r}. "
+            f"Run: python -m src.features.build_relational_features --relation {relation}\n"
+            f"Expected: {extra_path}"
         )
 
     b0_features = list(b0_metadata["feature_columns"])
     card1_feat_names = _feature_names(CARD1_RELATION)
-    addr1_feat_names = _feature_names(RELATION)
+    extra_feat_names = _feature_names(relation)
 
     train_df, validation_df, _ = load_model_dataset()
     model_index = pd.read_parquet(MODEL_DATASET_PATH, columns=["TransactionID", "split"])
     validate_split_counts(model_index, "model_dataset.parquet stage0 index")
 
-    card1_relational = pd.read_parquet(_rel_output_path(CARD1_RELATION))
-    if len(card1_relational) != EXPECTED_ROWS:
-        raise ValueError(f"Expected {EXPECTED_ROWS:,} card1 relational rows.")
-    card1_merged_index = validate_relational_merge(model_index, card1_relational, card1_feat_names)
-    train_df = attach_relational_features(train_df, card1_merged_index, "train", card1_feat_names)
-    validation_df = attach_relational_features(
-        validation_df, card1_merged_index, "validation", card1_feat_names
-    )
+    for path, names in (
+        (_rel_output_path(CARD1_RELATION), card1_feat_names),
+        (extra_path, extra_feat_names),
+    ):
+        relational = pd.read_parquet(path)
+        if len(relational) != EXPECTED_ROWS:
+            raise ValueError(f"Expected {EXPECTED_ROWS:,} relational rows in {path}.")
+        merged_index = validate_relational_merge(model_index, relational, names)
+        train_df = attach_relational_features(train_df, merged_index, "train", names)
+        validation_df = attach_relational_features(validation_df, merged_index, "validation", names)
+        del relational
 
-    addr1_relational = pd.read_parquet(addr1_path)
-    if len(addr1_relational) != EXPECTED_ROWS:
-        raise ValueError(f"Expected {EXPECTED_ROWS:,} addr1 relational rows.")
-    addr1_merged_index = validate_relational_merge(model_index, addr1_relational, addr1_feat_names)
-    train_df = attach_relational_features(train_df, addr1_merged_index, "train", addr1_feat_names)
-    validation_df = attach_relational_features(
-        validation_df, addr1_merged_index, "validation", addr1_feat_names
-    )
-
-    combined_feat_names = [*card1_feat_names, *addr1_feat_names]
+    combined_feat_names = [*card1_feat_names, *extra_feat_names]
     validate_model_columns_against_frozen_b0(
         list(train_df.columns), b0_features, combined_feat_names
     )
@@ -183,19 +177,19 @@ def load_stage0_datasets(
             f"B1-card1 predictor-count sanity check failed: expected "
             f"{EXPECTED_B1_CARD1_FEATURE_COUNT}, got {len(b1_card1_features)}."
         )
-    stage0_features = build_b1_feature_manifest(b1_card1_features, addr1_feat_names)
+    stage0_features = build_b1_feature_manifest(b1_card1_features, extra_feat_names)
     if len(stage0_features) != EXPECTED_STAGE0_FEATURE_COUNT:
         raise ValueError(
             f"Stage 0 predictor-count sanity check failed: expected "
             f"{EXPECTED_STAGE0_FEATURE_COUNT}, got {len(stage0_features)}."
         )
-
     return train_df, validation_df, stage0_features
 
 
-def train_stage0_check(skip_existing: bool = False) -> None:
-    label = f"stage0/{RELATION}/fixed{FIXED_BUDGET}_seed{RANDOM_SEED}"
-    if skip_existing and stage0_run_is_complete():
+def train_stage0_check(skip_existing: bool = False, relation: str = RELATION) -> None:
+    paths = stage0_paths(relation)
+    label = f"stage0/{relation}/fixed{FIXED_BUDGET}_seed{RANDOM_SEED}"
+    if skip_existing and stage0_run_is_complete(relation):
         print(f"[{label}] Already complete; skipping.")
         return
 
@@ -211,8 +205,9 @@ def train_stage0_check(skip_existing: bool = False) -> None:
     protected_before = snapshot_protected_artifacts(all_protected)
     b0_metadata = load_frozen_b0_metadata()
 
+    print(f"[{label}] {PURPOSE[relation]}")
     print(f"[{label}] Loading data...")
-    train_df, validation_df, feature_columns = load_stage0_datasets(b0_metadata)
+    train_df, validation_df, feature_columns = load_stage0_datasets(b0_metadata, relation)
 
     categorical_columns = list(b0_metadata["categorical_feature_columns"])
     if identify_categorical_columns(train_df[feature_columns]) != categorical_columns:
@@ -245,9 +240,6 @@ def train_stage0_check(skip_existing: bool = False) -> None:
     scale_pos_weight = calculate_scale_pos_weight(y_train)
     model = build_lightgbm_model(scale_pos_weight, n_estimators=FIXED_BUDGET)
     model.set_params(random_state=RANDOM_SEED)
-    # Only feature manifest may differ from frozen B0/the fixed-budget
-    # reference. Reused rather than reimplemented so this check cannot drift
-    # from the rule the convergence check already enforces.
     validate_convergence_configuration(model, b0_metadata, RANDOM_SEED, FIXED_BUDGET)
 
     print(
@@ -289,8 +281,8 @@ def train_stage0_check(skip_existing: bool = False) -> None:
     metrics = evaluate_validation(y_validation, validation_scores)
     metrics.update(
         {
-            "model": f"stage0_screening_{RELATION}",
-            "relation": RELATION,
+            "model": f"stage0_screening_{relation}",
+            "relation": relation,
             "protocol": PROTOCOL,
             "number_of_predictors": len(feature_columns),
             "random_seed": RANDOM_SEED,
@@ -309,29 +301,30 @@ def train_stage0_check(skip_existing: bool = False) -> None:
     validation_predictions = validation_metadata.copy()
     validation_predictions["prediction"] = validation_scores
 
-    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    model.booster_.save_model(str(MODEL_PATH), num_iteration=FIXED_BUDGET)
-    write_json(METRICS_PATH, metrics)
-    feature_importance.to_csv(FEATURE_IMPORTANCE_PATH, index=False)
+    paths["model"].parent.mkdir(parents=True, exist_ok=True)
+    paths["report_dir"].mkdir(parents=True, exist_ok=True)
+    model.booster_.save_model(str(paths["model"]), num_iteration=FIXED_BUDGET)
+    write_json(paths["metrics"], metrics)
+    feature_importance.to_csv(paths["feature_importance"], index=False)
     validation_predictions.to_parquet(
-        VALIDATION_PREDICTIONS_PATH, index=False, engine="pyarrow", compression="snappy"
+        paths["validation_predictions"], index=False, engine="pyarrow", compression="snappy"
     )
-    learning_curve.to_csv(LEARNING_CURVE_PATH, index=False)
+    learning_curve.to_csv(paths["learning_curve"], index=False)
 
     print(f"[{label}] Comparing against the fixed-budget B1-card1 reference...")
     comparison = compare_variants(
-        candidate_label=f"stage0_{RELATION}",
-        candidate_predictions_path=VALIDATION_PREDICTIONS_PATH,
+        candidate_label=f"stage0_{relation}",
+        candidate_predictions_path=paths["validation_predictions"],
         reference_label="b1_card1_fixed_budget",
         reference_predictions_path=reference_paths["validation_predictions"],
     )
-    pd.DataFrame([comparison]).to_csv(COMPARISON_PATH, index=False)
+    pd.DataFrame([comparison]).to_csv(paths["comparison"], index=False)
     meets_bar = bool(comparison["ci_lower_95"] > 0.0)
 
     metadata = {
-        "experiment_name": "stage0_screening_addr1",
-        "relation": RELATION,
+        "experiment_name": f"stage0_screening_{relation}",
+        "relation": relation,
+        "purpose": PURPOSE[relation],
         "protocol": PROTOCOL,
         "reference_configuration": "b1_card1_fixed_budget",
         "reference_rationale": (
@@ -343,7 +336,9 @@ def train_stage0_check(skip_existing: bool = False) -> None:
         ),
         "pre_registered_bar": PRE_REGISTERED_BAR,
         "meets_pre_registered_bar": meets_bar,
-        "varied_parameter": "feature manifest only (B1-card1's 439 features + addr1's 4 scalars)",
+        "varied_parameter": (
+            f"feature manifest only (B1-card1's 439 features + {relation}'s 4 scalars)"
+        ),
         "held_frozen": (
             "B0 feature manifest, train-only categorical mappings, class weight, "
             "estimator budget, and every other LightGBM parameter, matching the "
@@ -371,14 +366,14 @@ def train_stage0_check(skip_existing: bool = False) -> None:
         },
         "generated_at_utc": finished_at.isoformat(),
     }
-    write_json(METADATA_PATH, metadata)
+    write_json(paths["metadata"], metadata)
     assert_protected_artifacts_unchanged(
         protected_before,
         all_protected,
         label="frozen B0/B1-card1 and the fixed-budget b1_card1 reference",
     )
 
-    missing = [str(p) for p in _stage0_artifact_paths() if not p.exists()]
+    missing = [str(p) for key, p in paths.items() if key != "report_dir" and not p.exists()]
     if missing:
         raise OSError(f"[{label}] Stage 0 artifacts were not created: {missing}.")
 
@@ -388,7 +383,7 @@ def train_stage0_check(skip_existing: bool = False) -> None:
         f"[{label}] Delta vs fixed-budget B1-card1: {comparison['observed_delta']:+.5f} "
         f"95% CI [{comparison['ci_lower_95']:+.5f}, {comparison['ci_upper_95']:+.5f}]"
     )
-    print(f"[{label}] Meets pre-registered bar (independent win): {'YES' if meets_bar else 'NO'}")
+    print(f"[{label}] Meets pre-registered bar: {'YES' if meets_bar else 'NO'}")
     print(f"[{label}] Frozen/fixed-budget references unchanged: YES")
     print(f"[{label}] Final test evaluated: NO")
 
@@ -396,11 +391,12 @@ def train_stage0_check(skip_existing: bool = False) -> None:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="python -m src.models.train_lightgbm_stage0_check",
-        description="Stage 0 Track B: addr1's scalar features on top of B1-card1, fixed budget.",
+        description="One relation's scalar summaries on top of B1-card1, at a fixed budget.",
     )
+    parser.add_argument("--relation", choices=sorted(PURPOSE), default=RELATION)
     parser.add_argument("--skip-existing", action="store_true")
     args = parser.parse_args(argv)
-    train_stage0_check(skip_existing=args.skip_existing)
+    train_stage0_check(skip_existing=args.skip_existing, relation=args.relation)
 
 
 if __name__ == "__main__":
