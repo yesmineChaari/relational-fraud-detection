@@ -2,7 +2,7 @@
 
 Each model already has a thorough metadata manifest beside it -- feature lists,
 mapping hashes, split counts, frozen parameters. What was missing is the layer
-above: a reader opening `models/` sees sixty-three files and four near-identical
+above: a reader opening `models/` sees dozens of files and four near-identical
 baseline names, with nothing saying which is the frozen baseline, which are the
 alternatives it was chosen over, and which published claims rest on which file.
 
@@ -14,9 +14,9 @@ metadata JSON at generation time, never transcribed. Only the editorial layer --
 role, purpose, limitations, what the artifact must not be used for -- lives in
 this file, because no manifest can carry it.
 
-**Annotations are keyed by family, and completeness is enforced.** Forty-four
-of the artifacts are panel runs: eight ablation cells, five-seed variance
-panels, convergence checks, permuted nulls, fixed-budget refits. Per-file prose for those would be
+**Annotations are keyed by family, and completeness is enforced.** Most of the
+artifacts are panel runs: eight ablation cells, five-seed variance panels,
+convergence checks, permuted nulls, fixed-budget refits, encoder seeds. Per-file prose for those would be
 noise, so families are matched by pattern. Any model file matching no family
 fails the completeness check rather than being silently omitted, which is what
 makes "every file has an entry" a property rather than a claim.
@@ -54,8 +54,7 @@ LEDGER_JSON = OUTPUT_DIR / "experiment_ledger.json"
 
 MODEL_SUFFIXES = {".txt", ".pt"}
 
-# Applies to every artifact here, so it is stated once rather than repeated
-# sixty-three times.
+# Applies to every artifact here, so it is stated once rather than per entry.
 UNIVERSAL_LIMITATIONS = [
     "Trained on the 2019 IEEE-CIS competition dataset; nothing here has been "
     "validated against current fraud patterns.",
@@ -323,6 +322,69 @@ FAMILIES: list[dict[str, Any]] = [
         / m.group(1)
         / f"fixed{m.group(2)}_seed{m.group(3)}"
         / "metadata.json",
+    },
+    {
+        "family": "stage0_screening_check",
+        "pattern": r"^stage0_screening/lightgbm_stage0_(\w+)\.txt$",
+        "stage": "B1",
+        "role": "screening_check",
+        "purpose": (
+            "B1-card1 plus four history summaries over one further relation, "
+            "trained at the fixed 10,000-round budget and read against the "
+            "fixed-budget B1-card1 reference. Asks whether a relation never "
+            "tested on its own adds anything beyond card1; addr1 did not."
+        ),
+        "claims": ["The Stage 0 Track B verdict in reports/stage0_screening/stage0_verdict.json"],
+        "metrics": lambda m: REPORTS_DIR / "stage0_screening" / m.group(1) / "metrics.json",
+        "metadata": lambda m: REPORTS_DIR / "stage0_screening" / m.group(1) / "metadata.json",
+    },
+    {
+        "family": "g1v2_graph_model",
+        "pattern": r"^g1_v2/lightgbm_g1v2_card1_((?:count_blind_)?seed\d+)\.txt$",
+        "stage": "G1-v2",
+        "role": "graph_variant_panel",
+        "purpose": (
+            "B1-card1 plus one 32-column block from the cardinality-aware, "
+            "cross-fitted card1 encoder, trained at the fixed 10,000-round budget. "
+            "One run per pre-registered encoder seed; a count_blind run, if "
+            "present, is the attribution arm with every count input zeroed."
+        ),
+        "claims": ["The pre-registered G1-v2 Stage 1 verdict in reports/g1_v2/g1_v2_verdict.json"],
+        "metrics": lambda m: REPORTS_DIR / "g1_v2" / "card1" / m.group(1) / "metrics.json",
+        "metadata": lambda m: REPORTS_DIR / "g1_v2" / "card1" / m.group(1) / "metadata.json",
+    },
+    {
+        "family": "g1v2_width_null",
+        "pattern": r"^g1_v2/lightgbm_g1v2_card1_(shuffled_seed\d+)\.txt$",
+        "stage": "G1-v2",
+        "role": "null_control",
+        "purpose": (
+            "The primary G1-v2 embedding block permuted within each split: the "
+            "same columns and per-split marginals with no row alignment. Measures "
+            "what the block's width alone costs, against which the real block is read."
+        ),
+        "claims": ["Criterion (b) of the G1-v2 pre-registration"],
+        "metrics": lambda m: REPORTS_DIR / "g1_v2" / "card1" / m.group(1) / "metrics.json",
+        "metadata": lambda m: REPORTS_DIR / "g1_v2" / "card1" / m.group(1) / "metadata.json",
+    },
+    {
+        "family": "graphsage_v2_encoder",
+        "pattern": r"^graphsage_card1_v2_encoder_((?:count_blind_)?seed\d+)(?:_fold\d+)?\.pt$",
+        "stage": "G1-v2",
+        "role": "encoder",
+        "purpose": (
+            "A cardinality-aware GraphSAGE encoder for G1-v2. The full-train "
+            "encoder embeds validation and test rows, each fold encoder embeds its "
+            "held-out train rows, and all of a seed's encoders start from one "
+            "shared initialisation. Emits vectors, not scores."
+        ),
+        "claims": ["Inputs to the G1-v2 runs of the same encoder seed"],
+        "metrics": None,
+        "metadata": lambda m: REPORTS_DIR
+        / "graphsage"
+        / "card1_v2"
+        / m.group(1)
+        / "encoder_metadata.json",
     },
 ]
 

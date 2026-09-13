@@ -1,0 +1,14 @@
+{
+  "metric": "pr_auc",
+  "n_resamples": 10000,
+  "observed_delta": -0.016291449388751378,
+  "bootstrap_mean_delta": -0.016311500883278277,
+  "bootstrap_std_delta": 0.0021834637086091614,
+  "ci_lower_95": -0.020565881366498315,
+  "ci_upper_95": -0.012064111761711052,
+  "excludes_zero": true,
+  "random_seed": 42,
+  "candidate": "g1v2_shuffled_seed42",
+  "reference": "b1_card1_fixed_budget",
+  "validation_row_count": 88581
+}

@@ -1,0 +1,134 @@
+{
+  "report_name": "G1-v2 Stage 1 verdict (cardinality-aware card1 encoder)",
+  "preregistration_path": "configs/g1_v2_preregistration.json",
+  "preregistration_sha256": "53211d2c60f9cf90d2d3894a9c7082e328794f37eb1fa8cc25ce27c8ceddc910",
+  "evaluation_split": "validation",
+  "test_evaluated": false,
+  "decidable": true,
+  "verdict": "negative_result_stands",
+  "failed_criteria": [
+    "a_beats_b1_card1",
+    "b_beats_width_null",
+    "d_sign_consistent"
+  ],
+  "criteria": {
+    "a_beats_b1_card1": {
+      "passed": false,
+      "evidence": {
+        "encoder_seed": 42,
+        "observed_delta": -0.03243617352748385,
+        "ci_95": [
+          -0.03757142199145772,
+          -0.02737769297820955
+        ]
+      },
+      "rule": "Primary encoder seed: the 95% paired-bootstrap CI (10,000 resamples) on PR-AUC(G1-v2) - PR-AUC(B1-card1) lies entirely above zero."
+    },
+    "b_beats_width_null": {
+      "passed": false,
+      "evidence": {
+        "observed_delta": -0.01614472413873247,
+        "ci_95": [
+          -0.021228203847962708,
+          -0.011060808272836667
+        ]
+      },
+      "rule": "Primary encoder seed: the 95% paired-bootstrap CI on PR-AUC(G1-v2) - PR-AUC(the same block permuted within each split) lies entirely above zero."
+    },
+    "c_leakage_gate": {
+      "passed": true,
+      "evidence": {
+        "seed42": {
+          "usable": true,
+          "probe_gap": 0.004075773572759234,
+          "provenance_sound": true
+        },
+        "seed43": {
+          "usable": true,
+          "probe_gap": 0.013169482206079386,
+          "provenance_sound": true
+        },
+        "seed44": {
+          "usable": true,
+          "probe_gap": 0.012625532756022073,
+          "provenance_sound": true
+        }
+      },
+      "rule": "Every encoder seed: informativeness_gap parity holds (train minus validation probe ROC-AUC at most 0.02) and cross_fit_provenance is sound."
+    },
+    "d_sign_consistent": {
+      "passed": false,
+      "evidence": {
+        "seed42": -0.03243617352748385,
+        "seed43": -0.0258252246696572,
+        "seed44": -0.02813293812874884
+      },
+      "rule": "Every encoder seed: the observed PR-AUC delta against B1-card1 is positive."
+    }
+  },
+  "seed_panel": {
+    "observed_delta_by_seed": {
+      "seed42": -0.03243617352748385,
+      "seed43": -0.0258252246696572,
+      "seed44": -0.02813293812874884
+    },
+    "mean_observed_delta": -0.028798112108629963,
+    "std_observed_delta": 0.003355294848121851
+  },
+  "stage2_gate": {
+    "rule": "Stage 2 may start only if the mean observed PR-AUC delta against B1-card1 across the encoder seeds is positive. Stage 0 Track A's condition (a relation whose fraud_neighbor_lift beats card1's) is already met by device_info and device_fingerprint.",
+    "directional_win": false
+  },
+  "count_blind_attribution_permitted": false,
+  "width_null": {
+    "run": "shuffled_seed42",
+    "delta_vs_b1_card1": -0.016291449388751378,
+    "real_vs_shuffled": {
+      "metric": "pr_auc",
+      "n_resamples": 10000,
+      "observed_delta": -0.01614472413873247,
+      "bootstrap_mean_delta": -0.016160210115640648,
+      "bootstrap_std_delta": 0.0025894301044814792,
+      "ci_lower_95": -0.021228203847962708,
+      "ci_upper_95": -0.011060808272836667,
+      "excludes_zero": true,
+      "random_seed": 42,
+      "candidate": "g1v2_seed42",
+      "reference": "g1v2_shuffled_seed42",
+      "validation_row_count": 88581
+    }
+  },
+  "selection_bias_screen": {
+    "reference_rounds": 10000,
+    "variant_rounds": 10000,
+    "round_gap": 0,
+    "absolute_round_gap": 0,
+    "longer_trained": "equal",
+    "round_ratio": 1.0,
+    "common_rounds": 10000,
+    "plateau_window": 2000,
+    "delta_argmax": -0.03247543806419462,
+    "delta_matched": -0.03247543806419462,
+    "delta_plateau": -0.03254886338938123,
+    "argmax_minus_matched": 0.0,
+    "off_metric_delta_at_selection": -0.009084617380698212,
+    "sign_flips_under_matching": false,
+    "noise_floor": 0.000514200988964303,
+    "estimators_agree": true,
+    "shift_in_noise_floors": 0.0,
+    "gating": false,
+    "noise_floor_source": "reports/seed_variance/seed_variance_summary.json",
+    "reference_learning_curve": "reports/fixed_budget/card1/b1_card1/fixed10000_seed42/learning_curve.csv",
+    "variant_learning_curve": "reports/g1_v2/card1/seed42/learning_curve.csv"
+  },
+  "count_blind_attribution": {
+    "run": false,
+    "rule": "The primary seed re-run with every count input zeroed. Runs only if all four criteria pass; it attributes a win to the count inputs rather than to the embedding alone."
+  },
+  "versions": {
+    "python": "3.14.0",
+    "numpy": "2.5.2",
+    "pandas": "3.0.5"
+  },
+  "generated_at_utc": "2026-09-13T01:57:05.770017+00:00"
+}

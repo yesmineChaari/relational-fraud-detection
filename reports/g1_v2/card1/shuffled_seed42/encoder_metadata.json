@@ -1,0 +1,174 @@
+{
+  "relation_name": "card1",
+  "model_name": "graphsage_card1_v2_embeddings_shuffled_seed42",
+  "stage": "g1_v2_stage1_cardinality_aware",
+  "random_seed": 42,
+  "count_mode": "with_counts",
+  "architecture": {
+    "n_hops": 2,
+    "fan_outs": [
+      10,
+      10
+    ],
+    "aggregator": "mean",
+    "hidden_dim": 64,
+    "embedding_dim": 32,
+    "activation": "relu",
+    "normalization": "l2_per_layer",
+    "readout": "neighbourhood_only",
+    "input_dim": 435,
+    "layer1_input_dim": 871,
+    "layer2_input_dim": 65,
+    "cardinality_inputs": {
+      "transform": "log1p",
+      "target": "count_admissible_neighbors(target) under the target's own timestamp; equal to B1-card1's prior_count",
+      "hop1": "count_admissible_neighbors(neighbour) under the neighbour's own timestamp; its rank in the shared card timeline",
+      "zeroed": false
+    },
+    "empty_neighborhood_policy": "masked mean over zero valid neighbours is the zero vector, and a padded hop-1 slot carries a zero count"
+  },
+  "training_objective": "none: this block is not trained. It is the source G1-v2 block with its rows permuted within each split.",
+  "training_regime": "inductive",
+  "target_labels_used_for_training": true,
+  "target_labels_used_in_node_features": false,
+  "test_labels_used": false,
+  "mini_batch_budget": {
+    "steps_per_epoch": 320,
+    "batch_size": 256,
+    "targets_per_epoch": 81920,
+    "max_epochs": 10,
+    "max_targets": 819200,
+    "train_partition_rows": 413378,
+    "passes_per_epoch": 0.19817213301143263,
+    "max_passes": 1.9817213301143264,
+    "patience": 4,
+    "min_delta": 0.0001,
+    "monitor_evaluation_set": "full_validation_partition",
+    "targets_drawn_by_full_train_encoder": 655360
+  },
+  "early_stopping": {
+    "metric": "validation_pr_auc",
+    "monitor_evaluation_set": "full_validation_partition",
+    "patience": 4,
+    "min_delta": 0.0001,
+    "max_epochs": 10,
+    "stopped_epoch": 8,
+    "best_epoch": 4,
+    "best_validation_pr_auc_monitor": 0.1266500020575485,
+    "estimator_cap_reached": false,
+    "early_stopping_triggered": true
+  },
+  "cross_fitting": {
+    "n_folds": 3,
+    "fold_assignment": "fixed_seed_permutation_unstratified",
+    "fold_assignment_seed": 42,
+    "fold_sizes": [
+      137793,
+      137793,
+      137792
+    ],
+    "fold_schedule": "fixed_epochs_from_full_train_best_epoch",
+    "fold_epochs": 4,
+    "train_rows_embedded_by_held_out_encoder": 413378,
+    "inference_rows_embedded_by_full_train_encoder": 177162,
+    "shared_initialisation": true,
+    "initial_state_sha256": "2e191e7669d44869f415cc78e85b5a9c9a7e35d1e25ba25a481de2b2f074bf15",
+    "feature_scaler_fit_scope": "full_train_partition",
+    "feature_scaler_note": "Standardization statistics are fitted once on the whole train partition and shared by every fold encoder. This is label-free preprocessing and matches the frozen encoder; it is recorded rather than treated as cross-fitted."
+  },
+  "encoders": [
+    {
+      "role": "full_train",
+      "model_path": "models/graphsage_card1_v2_encoder_seed42.pt",
+      "train_target_rows": 413378,
+      "best_epoch": 4,
+      "stopped_epoch": 8,
+      "monitored": true,
+      "initial_state_sha256": "2e191e7669d44869f415cc78e85b5a9c9a7e35d1e25ba25a481de2b2f074bf15",
+      "embedded_splits": [
+        "validation",
+        "test"
+      ]
+    },
+    {
+      "role": "fold_0",
+      "model_path": "models/graphsage_card1_v2_encoder_seed42_fold0.pt",
+      "train_target_rows": 275585,
+      "held_out_rows": 137793,
+      "best_epoch": 4,
+      "stopped_epoch": 4,
+      "monitored": false,
+      "initial_state_sha256": "2e191e7669d44869f415cc78e85b5a9c9a7e35d1e25ba25a481de2b2f074bf15",
+      "embedded_splits": [
+        "train_fold_0"
+      ]
+    },
+    {
+      "role": "fold_1",
+      "model_path": "models/graphsage_card1_v2_encoder_seed42_fold1.pt",
+      "train_target_rows": 275585,
+      "held_out_rows": 137793,
+      "best_epoch": 4,
+      "stopped_epoch": 4,
+      "monitored": false,
+      "initial_state_sha256": "2e191e7669d44869f415cc78e85b5a9c9a7e35d1e25ba25a481de2b2f074bf15",
+      "embedded_splits": [
+        "train_fold_1"
+      ]
+    },
+    {
+      "role": "fold_2",
+      "model_path": "models/graphsage_card1_v2_encoder_seed42_fold2.pt",
+      "train_target_rows": 275586,
+      "held_out_rows": 137792,
+      "best_epoch": 4,
+      "stopped_epoch": 4,
+      "monitored": false,
+      "initial_state_sha256": "2e191e7669d44869f415cc78e85b5a9c9a7e35d1e25ba25a481de2b2f074bf15",
+      "embedded_splits": [
+        "train_fold_2"
+      ]
+    }
+  ],
+  "standalone_validation_pr_auc": 0.12878549445374773,
+  "leakage_gate": {
+    "not_applicable": "permutation null; no encoder was trained"
+  },
+  "class_weighting": {
+    "train_fraud_count": 14538,
+    "train_rows": 413378,
+    "pos_weight": 27.434310083918007
+  },
+  "split_row_counts": {
+    "train": 413378,
+    "validation": 88581,
+    "test": 88581
+  },
+  "input_model_dataset_sha256": "67e6873e4040f29ca820398a441d446cd0a99fd1438e13b6de0bf2c5dd62b999",
+  "input_nodes_sha256": "1bb46b5994eb105f9df7bae6306386aaaa69056d8e034fb65e3b5b664cc2f0ad",
+  "input_entity_edges_sha256": "167dce5dd36eee0ae6dbd8133628a4c95efded10c8540f49b191a5b719502e65",
+  "feature_scaler_sha256": "36a58b71201b16d6526eb0ab84360eefd6f6efe7f5036393d51aab83b34252c8",
+  "feature_column_count": 435,
+  "versions": {
+    "python": "3.14.0",
+    "numpy": "2.5.2",
+    "pandas": "3.0.5"
+  },
+  "embeddings_path": "data/processed/graphsage_card1_v2_embeddings_shuffled_seed42.parquet",
+  "embedding_row_count": 590540,
+  "embedding_has_no_nulls": true,
+  "embedding_has_no_target_column": true,
+  "model_path": "models/graphsage_card1_v2_encoder_seed42.pt",
+  "metrics_path": "reports/graphsage/card1_v2/seed42/encoder_metrics.json",
+  "training_curve_path": "reports/graphsage/card1_v2/seed42/encoder_training_curve.csv",
+  "control_variant": "shuffled_embedding",
+  "permutation": {
+    "scope": "within_split",
+    "seed": 42,
+    "unit": "whole 32-column row",
+    "source_embeddings_path": "data/processed/graphsage_card1_v2_embeddings_seed42.parquet",
+    "source_embeddings_sha256": "812ce284a47483844581852913e7839db70bf0bf213a26e7a6267f1273ea850b",
+    "rows_left_in_original_position": 150,
+    "per_split_marginals_preserved": true
+  }
+}

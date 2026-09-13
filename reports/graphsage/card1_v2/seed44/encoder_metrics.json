@@ -1,0 +1,41 @@
+{
+  "model": "v2/seed44_encoder_with_head",
+  "evaluation_split": "validation",
+  "n_transactions": 88581,
+  "n_fraud": 3042,
+  "fraud_rate": 0.03434145019812375,
+  "pr_auc": 0.12893879743639686,
+  "roc_auc": 0.7402813976475383,
+  "ranking_metrics": {
+    "top_0.5_pct": {
+      "fraction": 0.005,
+      "k": 443,
+      "frauds_found": 122,
+      "precision": 0.27539503386004516,
+      "recall": 0.040105193951347796
+    },
+    "top_1_pct": {
+      "fraction": 0.01,
+      "k": 886,
+      "frauds_found": 227,
+      "precision": 0.2562076749435666,
+      "recall": 0.07462195923734385
+    },
+    "top_2_pct": {
+      "fraction": 0.02,
+      "k": 1772,
+      "frauds_found": 435,
+      "precision": 0.24548532731376976,
+      "recall": 0.14299802761341224
+    },
+    "top_5_pct": {
+      "fraction": 0.05,
+      "k": 4430,
+      "frauds_found": 837,
+      "precision": 0.1889390519187359,
+      "recall": 0.27514792899408286
+    }
+  },
+  "test_evaluated": false,
+  "run_name": "v2/seed44"
+}
