@@ -44,6 +44,7 @@ from src.features.build_relational_features import (
     _feature_names,
     compute_relational_features,
 )
+from src.features.derived_keys import add_derived_columns, source_columns
 from src.graph.analyze_relations import CANDIDATES
 
 # ---------------------------------------------------------------------------
@@ -1049,8 +1050,10 @@ def run_screening(
             if c not in all_group_columns:
                 all_group_columns.append(c)
 
-    columns_to_load = list(
-        dict.fromkeys(["TransactionID", "TransactionDT", "split", "isFraud"] + all_group_columns)
+    # Derived grouping columns are not in the dataset; load their raw inputs
+    # and derive them with the one shared definition.
+    columns_to_load = source_columns(
+        ["TransactionID", "TransactionDT", "split", "isFraud"] + all_group_columns
     )
 
     log("Stage B: loading model dataset...")
@@ -1066,6 +1069,7 @@ def run_screening(
     if "split" not in full_df.columns:
         split_df = pd.read_parquet(split_path, columns=["TransactionID", "split"])
         full_df = full_df.merge(split_df, on="TransactionID", how="left")
+    full_df = add_derived_columns(full_df, all_group_columns)
 
     # Features are generated over every row so entity history stays continuous
     # across split boundaries, exactly as in B1; only train rows are then scored,

@@ -164,13 +164,13 @@ class TestAllCandidateRelationsPresent:
         selection = decide_candidate_selection(screening_df, disc_rows)
         assert set(selection["decisions"].keys()) == set(ALL_CANDIDATE_NAMES)
 
-    def test_candidates_dict_has_9_entries(self):
+    def test_candidates_dict_has_10_entries(self):
         # Pinned so an accidental addition/removal from CANDIDATES is caught.
         # Stage 0 of the G1-v2 plan added email_domain and addr1 to the
         # original seven (card1, card1_card2, card_core, card_full,
-        # card_core_addr1, device_info, device_fingerprint).
-        assert len(CANDIDATES) == 9
-        assert len(ALL_CANDIDATE_NAMES) == 9
+        # card_core_addr1, device_info, device_fingerprint); G2 added uid.
+        assert len(CANDIDATES) == 10
+        assert len(ALL_CANDIDATE_NAMES) == 10
 
 
 # ===========================================================================

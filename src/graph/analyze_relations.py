@@ -8,6 +8,7 @@ from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 
 from src.config.paths import ROOT_DIR
+from src.features.derived_keys import UID_COLUMNS, UID_RELATION, add_account_start_day
 
 RAW_DIR = ROOT_DIR / "data" / "raw"
 REPORT_DIR = ROOT_DIR / "reports" / "relational_audit"
@@ -36,6 +37,8 @@ CANDIDATES: dict[str, list[str]] = {
     # Stage 0 Track B: never tested alone (only ever combined into the
     # rejected card_core_addr1); a cheap independent side-bet.
     "addr1": ["addr1"],
+    # G2: a user-ID key on a derived column; see src/features/derived_keys.py.
+    UID_RELATION: list(UID_COLUMNS),
 }
 
 
@@ -52,6 +55,7 @@ def load_data() -> pd.DataFrame:
         "card6",
         "addr1",
         "P_emaildomain",
+        "D1",
     ]
     identity_columns = [
         "TransactionID",
@@ -80,6 +84,7 @@ def load_data() -> pd.DataFrame:
         how="left",
         validate="one_to_one",
     )
+    df = add_account_start_day(df)
     df["node_id"] = np.arange(len(df), dtype=np.int64)
     return df
 

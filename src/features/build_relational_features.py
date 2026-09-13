@@ -11,6 +11,14 @@ import pandas as pd
 from pandas.api.types import is_float_dtype, is_integer_dtype, is_numeric_dtype
 
 from src.config.paths import ROOT_DIR
+from src.features.derived_keys import (
+    DERIVED_COLUMN_DEFINITIONS,
+    DERIVED_COLUMNS,
+    UID_COLUMNS,
+    UID_RELATION,
+    add_derived_columns,
+    source_columns,
+)
 
 INPUT_PATH = ROOT_DIR / "data" / "processed" / "model_dataset.parquet"
 
@@ -24,6 +32,8 @@ RELATION_REGISTRY: dict[str, list[str]] = {
     "card1_card2": ["card1", "card2"],
     "addr1": ["addr1"],
     "device_fingerprint": ["DeviceInfo", "id_30", "id_31", "id_33"],
+    # Groups on a derived column; see src/features/derived_keys.py.
+    UID_RELATION: list(UID_COLUMNS),
 }
 
 # ---------------------------------------------------------------------------
@@ -313,6 +323,14 @@ def build_metadata(
     return {
         "relation_name": relation,
         "group_columns": group_columns,
+        "derived_group_columns": {
+            column: {
+                "inputs": list(DERIVED_COLUMNS[column]),
+                "definition": DERIVED_COLUMN_DEFINITIONS[column],
+            }
+            for column in group_columns
+            if column in DERIVED_COLUMNS
+        },
         "feature_names": feat_names,
         "strict_temporal_rule": "TransactionDT_previous < TransactionDT_current",
         "window_24h_seconds": WINDOW_24H_SECONDS,
@@ -360,14 +378,15 @@ def build_and_save_relational_features(relation_name: str) -> None:
     group_columns = RELATION_REGISTRY[relation_name]
     output_path = _output_path(relation_name)
     metadata_out = _metadata_path(relation_name)
-    load_cols = _input_columns(group_columns)
+    # Derived grouping columns are not in the dataset; load their raw inputs.
+    load_cols = source_columns(_input_columns(group_columns))
 
     if not INPUT_PATH.exists():
         raise FileNotFoundError(
             f"Model dataset not found: {INPUT_PATH}. Build it before relational features."
         )
     print(f"[{relation_name}] Loading columns from: {INPUT_PATH}")
-    source_df = pd.read_parquet(INPUT_PATH, columns=load_cols)
+    source_df = add_derived_columns(pd.read_parquet(INPUT_PATH, columns=load_cols), group_columns)
     if len(source_df) != EXPECTED_ROWS:
         raise ValueError(f"Expected {EXPECTED_ROWS:,} source rows; got {len(source_df):,}.")
 
