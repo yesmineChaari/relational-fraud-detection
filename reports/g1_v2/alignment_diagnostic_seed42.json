@@ -1,0 +1,59 @@
+{
+  "report_name": "G1-v2 alignment diagnostic, encoder seed 42",
+  "post_hoc": true,
+  "revises_the_verdict": false,
+  "rule": "The misalignment explanation is supported only if the aligned block (i) brings the partition alignment mean gap within the largest mean gap of any single-encoder block in reports/g1_controls/g1_control_summary.json and (ii) beats the unaligned block with a paired-bootstrap 95% CI entirely above zero.",
+  "partition_alignment": {
+    "mean_gap_before": 0.3979635536670685,
+    "mean_gap_after": 0.12852370738983154,
+    "single_encoder_ceiling": 0.23292267322540283,
+    "within_single_encoder_range": true
+  },
+  "aligned_vs_b1_card1": {
+    "metric": "pr_auc",
+    "n_resamples": 10000,
+    "observed_delta": -0.01835237471187101,
+    "bootstrap_mean_delta": -0.01834047033593826,
+    "bootstrap_std_delta": 0.0022029277658186684,
+    "ci_lower_95": -0.022722906293897747,
+    "ci_upper_95": -0.014091619512248892,
+    "excludes_zero": true,
+    "random_seed": 42,
+    "candidate": "g1v2_aligned_seed42",
+    "reference": "b1_card1_fixed_budget",
+    "validation_row_count": 88581
+  },
+  "aligned_vs_unaligned": {
+    "metric": "pr_auc",
+    "n_resamples": 10000,
+    "observed_delta": 0.014083798815612836,
+    "bootstrap_mean_delta": 0.014131240662980667,
+    "bootstrap_std_delta": 0.0023705742776089353,
+    "ci_lower_95": 0.009491956063790774,
+    "ci_upper_95": 0.01872797294870794,
+    "excludes_zero": true,
+    "random_seed": 42,
+    "candidate": "g1v2_aligned_seed42",
+    "reference": "g1v2_seed42",
+    "validation_row_count": 88581
+  },
+  "aligned_vs_width_null": {
+    "metric": "pr_auc",
+    "n_resamples": 10000,
+    "observed_delta": -0.0020609253231196334,
+    "bootstrap_mean_delta": -0.002028969452659984,
+    "bootstrap_std_delta": 0.002183495312695009,
+    "ci_lower_95": -0.006288568752779255,
+    "ci_upper_95": 0.002175742349550476,
+    "excludes_zero": false,
+    "random_seed": 42,
+    "candidate": "g1v2_aligned_seed42",
+    "reference": "g1v2_shuffled_seed42",
+    "validation_row_count": 88581
+  },
+  "leakage_gate_usable": true,
+  "misalignment_explanation_supported": true,
+  "consequence_for_stage2": "include the alignment step",
+  "evaluation_split": "validation",
+  "test_evaluated": false
+}

@@ -1,0 +1,35 @@
+{
+  "usable": true,
+  "rule": "Usable only if informativeness_gap parity holds and cross_fit_provenance is sound. A block that is not usable is not credited by the verdict.",
+  "informativeness_gap": {
+    "train_probe_roc_auc": 0.7427401405194889,
+    "validation_probe_roc_auc": 0.7384869425935714,
+    "gap": 0.004253197925917496,
+    "tolerance": 0.02,
+    "parity_holds": true,
+    "outcome_code": "TRAIN_INFERENCE_PARITY_HOLDS"
+  },
+  "cross_fit_provenance": {
+    "cross_fitted": true,
+    "n_folds": 3,
+    "fold_sizes": [
+      137793,
+      137793,
+      137792
+    ],
+    "provenance_sound": true,
+    "failures": []
+  },
+  "partition_alignment_diagnostic": {
+    "metric": "standardised_absolute_mean_gap_train_vs_validation",
+    "mean_gap": 0.12852370738983154,
+    "max_gap": 0.4154113531112671,
+    "threshold": 0.5,
+    "columns_above_threshold": 0,
+    "column_count": 32,
+    "gating": false,
+    "reference": "embedding_partition_alignment in reports/g1_controls/g1_control_summary.json: single-encoder blocks versus the unaligned cross-fitted block"
+  },
+  "embeddings_path": "data/processed/graphsage_card1_v2_embeddings_aligned_seed42.parquet",
+  "embeddings_sha256": "ab5151812b9cca2d73053465ee1b019db1d5dc9cfdf5980fd51aa67a0013e981"
+}

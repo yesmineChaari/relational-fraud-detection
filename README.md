@@ -309,7 +309,8 @@ fraud-relational-ml/
 │       ├── train_lightgbm_g1v2.py                     # G1-v2 fixed-budget LightGBM on B1-card1 + embedding
 │       ├── train_lightgbm_g1v2_controls.py            # G1-v2 width null (block permuted within split)
 │       ├── train_g1v2_seed_panel.py                   # The registered seed panel, one process per step
-│       └── compare_g1v2_verdict.py                    # G1-v2 verdict under the pre-registered criteria
+│       ├── compare_g1v2_verdict.py                    # G1-v2 verdict under the pre-registered criteria
+│       └── diagnose_g1v2_alignment.py                 # Post-hoc Procrustes alignment check on G1-v2
 └── tests/
     ├── test_lightgbm_baseline.py                      # B0 unit test suite
     ├── test_lightgbm_relational.py                    # B1 merge & invariant test suite
@@ -322,6 +323,7 @@ fraud-relational-ml/
     ├── test_lightgbm_g1.py                            # G1 merge suite
     ├── test_g1_controls.py                            # Attribution-control suite
     ├── test_g1v2_verdict.py                           # Pre-registration schema, criteria & panel plan
+    ├── test_g1v2_alignment.py                         # Procrustes recovery & diagnostic layout
     ├── test_seed_variance.py                          # Seed-variance & stratification suite
     ├── test_convergence_check.py                      # Convergence-check & cap-decision suite
     ├── test_significance.py                           # Shared paired-bootstrap module suite
@@ -341,7 +343,7 @@ fraud-relational-ml/
     └── test_experiment_ledger.py                      # Ledger completeness & disclosure suite
 ```
 
-The suite is **891 tests**: 889 in the gating run plus two throughput benchmarks
+The suite is **898 tests**: 896 in the gating run plus two throughput benchmarks
 that are marked and deselected. Continuous integration runs the gating set on
 every push and pull request. On a clean checkout 53 of them skip, because the
 raw dataset is gitignored and the tests that need it guard on its presence; the
@@ -486,6 +488,10 @@ python -m src.models.compare_stage0_candidates
 #     encoders, fixed-budget LightGBM, the width null, then the verdict
 python -m src.models.train_g1v2_seed_panel --list
 python -m src.models.train_g1v2_seed_panel
+#     Post hoc: align the seed-42 fold encoders to the full-train encoder, then
+#     re-evaluate (two processes: encoder inference, then one LightGBM fit)
+python -m src.models.diagnose_g1v2_alignment --step build
+python -m src.models.diagnose_g1v2_alignment --step evaluate
 
 # 14. Final test protocol. The one-shot read has been made (Section 17), and the
 #     executor now refuses to run at all, dry run included, because
@@ -647,7 +653,16 @@ The verdict is **`negative_result_stands`**: criteria (a), (b) and (d) fail and 
 3. **The encoder learned little on its own.** Its standalone validation PR-AUC was 0.127–0.129 on every seed, no better than the count-blind neighbourhood-only control (0.135).
 4. **The comparison is not exposed to selection.** Both arms ran exactly 10,000 rounds, so the argmax and matched-budget estimates coincide at $-0.03248$, the plateau over the last 2,000 rounds gives $-0.03255$, and ROC-AUC at the same iteration is lower as well ($-0.00908$).
 
-The graph question on card1 closes on both architectures tried. Neither the count-blind encoder of the controls above nor the count-aware one reaches B1-card1.
+**A post-hoc alignment check** (`reports/g1_v2/alignment_diagnostic_seed42.json`). Point 2 was then tested directly on the saved seed-42 encoders, under a rule fixed before it ran: the explanation holds only if alignment brings the gap inside the single-encoder range *and* the aligned block beats the published one with an interval above zero. Each fold encoder's output was mapped onto the full-train encoder's coordinates by an orthogonal Procrustes fit (centre, rotate, re-centre) on train rows both encoders embedded over identical neighbourhoods. No labels were read, and validation and test rows were left exactly as published.
+
+| Seed-42 block | PR-AUC | Alignment gap | $\Delta$ vs published | $\Delta$ vs width null | $\Delta$ vs B1-card1 |
+| :--- | ---: | ---: | :--- | :--- | :--- |
+| As published | 0.62894 | 0.398 | — | $-0.01614$ $[-0.02123, -0.01106]$ | $-0.03244$ $[-0.03757, -0.02738]$ |
+| Aligned | 0.64302 | 0.129 | $+0.01408$ $[+0.00949, +0.01873]$ | $-0.00206$ $[-0.00629, +0.00218]$ | $-0.01835$ $[-0.02272, -0.01409]$ |
+
+Both conditions hold, so the misalignment explanation is supported: alignment brings the gap well inside the single-encoder range (at most 0.233) and recovers $+0.01408$. It also locates the rest of the deficit. Aligned, the real block is statistically indistinguishable from a random block of the same width, so its content adds nothing beyond B1-card1's four scalars, and the remaining $-0.01835$ is what 32 extra columns cost this LightGBM configuration. The check is post hoc and does not revise the verdict.
+
+The graph question on card1 closes on both architectures tried. Neither the count-blind encoder of the controls above nor the count-aware one reaches B1-card1, and once aligned the count-aware block is worth exactly its width.
 
 ---
 
@@ -1018,7 +1033,7 @@ retraining.
 
 ## 16. Experiment Ledger (`reports/ledger/`)
 
-Eighty model artifacts now sit under `models/`. The ledger indexes every one
+Eighty-one model artifacts now sit under `models/`. The ledger indexes every one
 of them with its stage, role, purpose, the claims resting on it, its limitations
 and — explicitly — what it must not be used for.
 
@@ -1097,8 +1112,9 @@ strength of these results; work they motivate needs a newly held-out partition.
    every encoder and the alignment gap did not close (0.40–0.61, against
    0.12–0.23 for single-encoder blocks). A block assembled from several encoders
    cannot be read at face value, and the within-split leakage probe cannot
-   detect the shift. Aligning each fold encoder's output to the full-train
-   encoder is the remaining untried remedy.
+   detect the shift. An orthogonal alignment of each fold encoder's output onto
+   the full-train encoder does close it (0.398 to 0.129 on seed 42, Section 8);
+   any future cross-fitted block should be aligned before it is used.
 2. **The frozen artifacts are not at convergence.** Deliberate — they are kept at
    the 6,000-round cap so published numbers remain reproducible — but it means
    frozen figures understate their models, and frozen G1 most of all. Quote the

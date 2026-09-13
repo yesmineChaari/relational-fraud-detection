@@ -340,14 +340,16 @@ FAMILIES: list[dict[str, Any]] = [
     },
     {
         "family": "g1v2_graph_model",
-        "pattern": r"^g1_v2/lightgbm_g1v2_card1_((?:count_blind_)?seed\d+)\.txt$",
+        "pattern": r"^g1_v2/lightgbm_g1v2_card1_((?:count_blind_|aligned_)?seed\d+)\.txt$",
         "stage": "G1-v2",
         "role": "graph_variant_panel",
         "purpose": (
             "B1-card1 plus one 32-column block from the cardinality-aware, "
             "cross-fitted card1 encoder, trained at the fixed 10,000-round budget. "
             "One run per pre-registered encoder seed; a count_blind run, if "
-            "present, is the attribution arm with every count input zeroed."
+            "present, is the attribution arm with every count input zeroed, and an "
+            "aligned run is the post-hoc alignment diagnostic, which cannot revise "
+            "the verdict."
         ),
         "claims": ["The pre-registered G1-v2 Stage 1 verdict in reports/g1_v2/g1_v2_verdict.json"],
         "metrics": lambda m: REPORTS_DIR / "g1_v2" / "card1" / m.group(1) / "metrics.json",
