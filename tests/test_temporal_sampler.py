@@ -13,6 +13,7 @@ from src.graph.temporal_sampler import (
     PAD_NODE_ID,
     admissible_neighbors,
     build_temporal_graph_index,
+    count_admissible_neighbors,
     load_temporal_graph_index,
     sample_fixed_fanout,
     sample_k_hop,
@@ -372,6 +373,115 @@ class RealGraphIntegrationTests(unittest.TestCase):
             600.0,
             f"Projected full-epoch sampling time is {projected_epoch_seconds:.1f}s, "
             "too slow for iterative training.",
+        )
+
+
+class CountAdmissibleNeighborsTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # Entity 0: node 0 @ t=100, node 1 @ t=200, node 2 @ t=200, node 3 @ t=300
+        # Entity 1: node 4 @ t=50 (singleton)
+        self.index = make_index(
+            {
+                0: [(0, 100), (1, 200), (2, 200), (3, 300)],
+                1: [(4, 50)],
+            }
+        )
+
+    def test_matches_the_materialised_neighbourhood_for_every_node(self) -> None:
+        for node in range(5):
+            self.assertEqual(
+                count_admissible_neighbors(self.index, node),
+                len(admissible_neighbors(self.index, node)),
+            )
+
+    def test_matches_under_every_external_bound(self) -> None:
+        for node in range(5):
+            for target_dt in (0, 100, 150, 200, 250, 300, 1_000):
+                self.assertEqual(
+                    count_admissible_neighbors(self.index, node, target_dt=target_dt),
+                    len(admissible_neighbors(self.index, node, target_dt=target_dt)),
+                )
+
+    def test_a_node_is_never_counted_as_its_own_neighbour(self) -> None:
+        # Under a bound after node 1's own timestamp, node 1 sits inside the
+        # candidate slice and must still be excluded: nodes 0 and 2 remain.
+        self.assertEqual(count_admissible_neighbors(self.index, 1, target_dt=300), 2)
+
+    def test_tied_timestamps_are_not_counted(self) -> None:
+        self.assertEqual(count_admissible_neighbors(self.index, 1), 1)
+        self.assertEqual(count_admissible_neighbors(self.index, 2), 1)
+
+    def test_matches_on_random_graphs_with_ties(self) -> None:
+        rng = np.random.default_rng(0)
+        for _ in range(25):
+            n = int(rng.integers(5, 60))
+            entities = rng.integers(0, 4, size=n)
+            times = rng.integers(0, 15, size=n)
+            index = make_index(
+                {
+                    int(e): [(i, float(times[i])) for i in range(n) if entities[i] == e]
+                    for e in np.unique(entities)
+                }
+            )
+            for node in range(n):
+                bound = None if rng.random() < 0.5 else float(rng.integers(0, 16))
+                self.assertEqual(
+                    count_admissible_neighbors(index, node, target_dt=bound),
+                    len(admissible_neighbors(index, node, target_dt=bound)),
+                )
+
+    def test_the_count_is_not_capped_by_the_fan_out(self) -> None:
+        # The quantity sample_fixed_fanout discards: the draw saturates at 10,
+        # the true neighbourhood does not.
+        index = make_index({0: [(i, float(i)) for i in range(200)]})
+        _, mask = sample_fixed_fanout(index, 199, fan_out=10, rng=np.random.default_rng(0))
+        self.assertEqual(int(mask.sum()), 10)
+        self.assertEqual(count_admissible_neighbors(index, 199), 199)
+
+
+@unittest.skipUnless(
+    ENTITY_EDGES_PATH.exists(),
+    "Graph artifacts have not been generated; run "
+    "`python -m src.graph.build_transaction_graph` first.",
+)
+class RealGraphCountTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.index = load_temporal_graph_index()
+        edges = pd.read_parquet(ENTITY_EDGES_PATH, columns=["node_id", "split"])
+        cls.train_node_ids = edges.loc[edges["split"] == "train", "node_id"].to_numpy()
+
+    def test_count_matches_the_materialised_neighbourhood_on_real_targets(self) -> None:
+        rng = np.random.default_rng(0)
+        for target in rng.choice(self.train_node_ids, size=200, replace=False):
+            self.assertEqual(
+                count_admissible_neighbors(self.index, int(target)),
+                len(admissible_neighbors(self.index, int(target))),
+            )
+
+    @pytest.mark.benchmark
+    def test_counting_keeps_a_training_epoch_fast_enough(self) -> None:
+        # Mirrors test_two_hop_sampling_is_fast_enough_for_a_training_epoch with
+        # the counts the cardinality-aware encoder adds: one per target and one
+        # per sampled hop-1 neighbour.
+        rng = np.random.default_rng(0)
+        probes = rng.choice(self.train_node_ids, size=5_000, replace=False)
+        started = time.perf_counter()
+        for target in probes:
+            hop1_ids, hop1_mask = sample_k_hop(
+                self.index, target_node_id=int(target), fan_outs=[10, 10], rng=rng
+            )[0]
+            count_admissible_neighbors(self.index, int(target))
+            for neighbour in hop1_ids[hop1_mask]:
+                count_admissible_neighbors(self.index, int(neighbour))
+        elapsed = time.perf_counter() - started
+
+        projected_epoch_seconds = 413_378 / (len(probes) / elapsed)
+        self.assertLess(
+            projected_epoch_seconds,
+            600.0,
+            f"Projected full-epoch sampling-plus-counting time is "
+            f"{projected_epoch_seconds:.1f}s, too slow for iterative training.",
         )
 
 

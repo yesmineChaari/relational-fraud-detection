@@ -122,6 +122,30 @@ def load_temporal_graph_index() -> TemporalGraphIndex:
     return build_temporal_graph_index(edges_df)
 
 
+def _admissible_slice(
+    index: TemporalGraphIndex,
+    node_id_query: int,
+    target_dt: float | None,
+) -> tuple[int, int, int]:
+    """(query position, first candidate position, cutoff) under the admissibility rule.
+
+    Positions [start, cutoff) hold every same-entity transaction strictly
+    earlier than `target_dt`. The query node itself can fall inside that range
+    when `target_dt` is supplied externally, so callers must exclude it.
+    """
+    position = int(index.position_of_node[node_id_query])
+    if target_dt is None:
+        target_dt = index.transaction_dt[position]
+
+    entity = index.entity_id[position]
+    start = int(index.entity_boundaries[entity])
+    end = int(index.entity_boundaries[entity + 1])
+    entity_times = index.transaction_dt[start:end]
+
+    cutoff = start + int(np.searchsorted(entity_times, target_dt, side="left"))
+    return position, start, cutoff
+
+
 def admissible_neighbors(
     index: TemporalGraphIndex,
     node_id_query: int,
@@ -136,16 +160,7 @@ def admissible_neighbors(
     used, which is the correct (and only sensible) bound for a standalone
     hop-1 query.
     """
-    position = index.position_of_node[node_id_query]
-    if target_dt is None:
-        target_dt = index.transaction_dt[position]
-
-    entity = index.entity_id[position]
-    start = index.entity_boundaries[entity]
-    end = index.entity_boundaries[entity + 1]
-    entity_times = index.transaction_dt[start:end]
-
-    cutoff = start + int(np.searchsorted(entity_times, target_dt, side="left"))
+    position, start, cutoff = _admissible_slice(index, node_id_query, target_dt)
     candidate_positions = np.arange(start, cutoff)
     # A node is never its own neighbour. This only bites when target_dt is
     # supplied externally (hop 2+): the querying node's own timestamp can
@@ -154,6 +169,21 @@ def admissible_neighbors(
     # the cutoff to have excluded it.
     candidate_positions = candidate_positions[candidate_positions != position]
     return index.node_id[candidate_positions]
+
+
+def count_admissible_neighbors(
+    index: TemporalGraphIndex,
+    node_id_query: int,
+    target_dt: float | None = None,
+) -> int:
+    """How many neighbours `admissible_neighbors` would return, without materialising them.
+
+    This is the true neighbourhood size `sample_fixed_fanout` computes and then
+    discards once it has capped the draw at its fan-out. Same admissibility
+    rule, same self-exclusion, one binary search.
+    """
+    position, start, cutoff = _admissible_slice(index, node_id_query, target_dt)
+    return (cutoff - start) - int(start <= position < cutoff)
 
 
 def sample_fixed_fanout(
