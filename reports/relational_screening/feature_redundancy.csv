@@ -29,3 +29,9 @@ card_core_addr1_prior_count,card_core_addr1_time_since_previous_hours,-0.5223896
 card_core_addr1_prior_count_24h,card_core_addr1_prior_count_7d,0.8543463427562424,0.0,413378,card_core_addr1
 card_core_addr1_prior_count_24h,card_core_addr1_time_since_previous_hours,-0.8224651922505576,0.0,325017,card_core_addr1
 card_core_addr1_prior_count_7d,card_core_addr1_time_since_previous_hours,-0.6965279639658045,0.0,325017,card_core_addr1
+addr1_prior_count,addr1_prior_count_24h,0.7191111535882092,0.0,413378,addr1
+addr1_prior_count,addr1_prior_count_7d,0.7812488677295575,0.0,413378,addr1
+addr1_prior_count,addr1_time_since_previous_hours,-0.32109716749816186,0.0,365542,addr1
+addr1_prior_count_24h,addr1_prior_count_7d,0.959406904021541,0.0,413378,addr1
+addr1_prior_count_24h,addr1_time_since_previous_hours,-0.5277863160641839,0.0,365542,addr1
+addr1_prior_count_7d,addr1_time_since_previous_hours,-0.49691524297852385,0.0,365542,addr1

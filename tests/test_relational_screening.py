@@ -1,7 +1,7 @@
 """Tests for src/features/screen_relations.py.
 
 Nine test categories mandated by implementation.md §24:
- T1  All 7 candidate relations appear in output.
+ T1  All candidate relations appear in output.
  T2  Audit metrics read from train-only reports (not val/test data).
  T3  No test/validation labels loaded during Stage A.
  T4  No validation performance metrics used for Stage A decisions.
@@ -107,7 +107,7 @@ def _make_graph_row(
 
 
 def _make_all_audit_dfs(overrides: dict | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Build minimal entity_diagnostics and graph_diagnostics covering all 7 relations."""
+    """Build minimal entity_diagnostics and graph_diagnostics covering every candidate relation."""
     overrides = overrides or {}
     entity_rows = []
     graph_rows = []
@@ -144,29 +144,33 @@ def _make_source_df(
 
 
 # ===========================================================================
-# T1 — All 7 candidate relations appear in screening output
+# T1 — All candidate relations appear in screening output
 # ===========================================================================
 
 
-class TestAllSevenRelationsPresent:
+class TestAllCandidateRelationsPresent:
     """T1: Verify every CANDIDATES entry is represented in the output."""
 
-    def test_structural_screening_contains_all_7_relations(self):
+    def test_structural_screening_contains_all_candidate_relations(self):
         entity_df, graph_df = _make_all_audit_dfs()
         screening_df = build_structural_screening_table(entity_df, graph_df)
         assert set(screening_df["relation"]) == set(ALL_CANDIDATE_NAMES)
-        assert len(screening_df) == 7
+        assert len(screening_df) == len(ALL_CANDIDATE_NAMES)
 
-    def test_all_7_relations_in_candidate_decisions(self):
+    def test_all_relations_in_candidate_decisions(self):
         entity_df, graph_df = _make_all_audit_dfs()
         screening_df = build_structural_screening_table(entity_df, graph_df)
         disc_rows: list = []  # no discrimination data needed for reject logic
         selection = decide_candidate_selection(screening_df, disc_rows)
         assert set(selection["decisions"].keys()) == set(ALL_CANDIDATE_NAMES)
 
-    def test_candidates_dict_has_7_entries(self):
-        assert len(CANDIDATES) == 7
-        assert len(ALL_CANDIDATE_NAMES) == 7
+    def test_candidates_dict_has_9_entries(self):
+        # Pinned so an accidental addition/removal from CANDIDATES is caught.
+        # Stage 0 of the G1-v2 plan added email_domain and addr1 to the
+        # original seven (card1, card1_card2, card_core, card_full,
+        # card_core_addr1, device_info, device_fingerprint).
+        assert len(CANDIDATES) == 9
+        assert len(ALL_CANDIDATE_NAMES) == 9
 
 
 # ===========================================================================
@@ -206,7 +210,7 @@ class TestAuditMetricsFromTrainOnly:
     def test_load_audit_raises_if_relation_missing(self, tmp_path, monkeypatch):
         import src.features.screen_relations as sr
 
-        # Only 6 of 7 relations.
+        # Every candidate relation except one.
         entity_rows = []
         graph_rows = []
         for rel in ALL_CANDIDATE_NAMES[:-1]:

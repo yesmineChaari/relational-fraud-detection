@@ -22,6 +22,7 @@ RELATION_REGISTRY: dict[str, list[str]] = {
     "card_core_addr1": ["card1", "card2", "card3", "card5", "addr1"],
     "card1": ["card1"],
     "card1_card2": ["card1", "card2"],
+    "addr1": ["addr1"],
 }
 
 # ---------------------------------------------------------------------------

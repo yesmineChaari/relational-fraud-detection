@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-09-02T19:03:12.247670+00:00",
+  "generated_at_utc": "2026-09-12T18:27:58.734186+00:00",
   "stage_a_only": true,
   "validation_used_for_selection": false,
   "final_test_evaluated": false,
@@ -9,6 +9,7 @@
     "largest_component_reject_pct": 10.0,
     "recurring_entity_min_pct": 50.0,
     "group_size_median_min": 2.0,
+    "median_repeat_gap_must_be_finite": true,
     "preferred_coverage_min_pct": 80.0,
     "preferred_largest_entity_max_pct": 5.0,
     "max_preferred_relations": 2,
@@ -151,6 +152,36 @@
       "decision": "reject",
       "reason": "failed structural screening",
       "structural_classification": "problematic"
+    },
+    "email_domain": {
+      "decision": "reject",
+      "reason": "failed structural screening",
+      "structural_classification": "problematic"
+    },
+    "addr1": {
+      "decision": "shortlist",
+      "structural_classification": "promising",
+      "best_univariate_feature": "addr1_prior_count_7d",
+      "best_univariate_pr_auc": 0.07560414545684702,
+      "best_univariate_roc_auc": 0.34791808146913983,
+      "best_univariate_pr_auc_lift": 2.149751715549629,
+      "best_univariate_direction": "lower_is_fraud",
+      "best_univariate_pr_auc_covered": 0.030144830602461863,
+      "best_univariate_pr_auc_lift_covered": 1.1995635984573305,
+      "best_univariate_roc_auc_covered": 0.4623160989865829,
+      "overall_feature_signal_strength": "weak",
+      "coverage_pct": 88.50495188423186,
+      "largest_entity_share_pct": 9.002897283113759,
+      "reason": "passed structural screening, but its best history summary (PR-AUC lift 1.200 on covered rows) does not beat a plain 'grouping key is missing' flag (lift 1.808); the apparent signal is missingness, not entity history",
+      "promotion_gates": {
+        "structural_classification_is_promising": true,
+        "coverage_at_least_preferred_minimum": true,
+        "largest_entity_below_preferred_maximum": false,
+        "history_signal_at_least_moderate": false,
+        "history_signal_exceeds_key_missingness": false
+      },
+      "key_missingness_pr_auc_lift": 1.8078849313151777,
+      "coverage_weighted_signal": 0.17662366679310204
     }
   }
 }

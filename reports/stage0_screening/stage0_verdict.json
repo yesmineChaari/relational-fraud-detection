@@ -1,0 +1,66 @@
+{
+  "report_name": "Stage 0 pre-checks (G1-v2 plan)",
+  "generated_at_utc": "2026-09-12T18:51:06.416091+00:00",
+  "primary_relation": "card_core_addr1",
+  "track_a": {
+    "track": "A",
+    "description": "Hub-tolerant candidates, screened by fraud-neighbour lift alone -- no LightGBM training, and a scalar-feature null result is not a valid veto for these relations (see module docstring).",
+    "pre_registered_bar": "fraud_neighbor_lift must exceed card1's own 8.4875x to qualify for Stage 2 eligibility.",
+    "reference_relation": "card1",
+    "reference_fraud_neighbor_lift": 8.4874814379714,
+    "candidates": {
+      "email_domain": {
+        "group_columns": [
+          "P_emaildomain"
+        ],
+        "fraud_neighbor_lift": 4.856820109242168,
+        "card1_fraud_neighbor_lift": 8.4874814379714,
+        "exceeds_card1_lift": false,
+        "decision": "does_not_qualify"
+      },
+      "device_info": {
+        "group_columns": [
+          "DeviceInfo"
+        ],
+        "fraud_neighbor_lift": 12.773102339091292,
+        "card1_fraud_neighbor_lift": 8.4874814379714,
+        "exceeds_card1_lift": true,
+        "decision": "qualifies_for_stage2_eligibility"
+      },
+      "device_fingerprint": {
+        "group_columns": [
+          "DeviceInfo",
+          "id_30",
+          "id_31",
+          "id_33"
+        ],
+        "fraud_neighbor_lift": 13.211111516905204,
+        "card1_fraud_neighbor_lift": 8.4874814379714,
+        "exceeds_card1_lift": true,
+        "decision": "qualifies_for_stage2_eligibility"
+      }
+    },
+    "any_candidate_qualifies": true
+  },
+  "track_b": {
+    "track": "B",
+    "relation": "addr1",
+    "decidable": true,
+    "description": "addr1's 4 scalar relational features added to B1-card1's manifest, trained at the fixed 10,000-round budget against the fixed-budget B1-card1 reference.",
+    "pre_registered_bar": "Independent win only if the 95% paired-bootstrap CI on PR-AUC(candidate) - PR-AUC(b1_card1_fixed_budget) excludes zero on the positive side.",
+    "protocol": "fixed_budget_no_early_stopping",
+    "validation_pr_auc": 0.6587408786416227,
+    "observed_delta_vs_b1_card1_fixed_budget": -0.0026342261677191336,
+    "ci_95_vs_b1_card1_fixed_budget": [
+      -0.006098221032527565,
+      0.0007926090731042757
+    ],
+    "meets_pre_registered_bar": false,
+    "verdict": "negative_result_stands"
+  },
+  "versions": {
+    "python": "3.14.0",
+    "numpy": "2.5.2",
+    "pandas": "3.0.5"
+  }
+}

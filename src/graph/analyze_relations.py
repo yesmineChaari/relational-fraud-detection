@@ -29,6 +29,13 @@ CANDIDATES: dict[str, list[str]] = {
     "card_core_addr1": ["card1", "card2", "card3", "card5", "addr1"],
     "device_info": ["DeviceInfo"],
     "device_fingerprint": ["DeviceInfo", "id_30", "id_31", "id_33"],
+    # Stage 0 Track A (G1-v2 plan): a hub-dominated candidate, screened by
+    # fraud_neighbor_lift alone rather than the scalar-feature pipeline -- see
+    # src/models/compare_stage0_candidates.py's module docstring.
+    "email_domain": ["P_emaildomain"],
+    # Stage 0 Track B: never tested alone (only ever combined into the
+    # rejected card_core_addr1); a cheap independent side-bet.
+    "addr1": ["addr1"],
 }
 
 
@@ -44,6 +51,7 @@ def load_data() -> pd.DataFrame:
         "card5",
         "card6",
         "addr1",
+        "P_emaildomain",
     ]
     identity_columns = [
         "TransactionID",
